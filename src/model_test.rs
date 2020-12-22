@@ -1,0 +1,40 @@
+use super::*;
+
+use na::{Matrix1x2, Matrix2x1, Matrix2x3, Matrix1x3};
+use na::{U1, U2};
+
+#[test]
+fn create_linear_model() {
+    let model = LinearModel::<U2, U1>::new();
+    assert_eq!(model.num_inputs(), 2);
+    assert_eq!(model.num_outputs(), 1);
+}
+
+#[test]
+fn update_linear_model() {
+    let mut model = LinearModel::<U2, U1>::new();
+    
+    let x0 = Matrix2x1::new(0.5, 1.0);
+    let y0 = Matrix1x2::new(2.0, 1.0) * Matrix2x1::new(1.0, 1.0);
+    model.update(&x0, &y0);
+    let yh0 = model.predict(&x0);
+
+    model.update(&x0, &y0);
+    let yh1 = model.predict(&x0);
+     
+    // XXX check that yh1 is closer to 3 than yh0
+}
+
+#[test]
+fn update_bulk_linear_model() {
+    let mut model = LinearModel::<U2, U1>::new();
+    let x = Matrix2x3::new(
+        2.0, 3.0, 4.0,
+        1.0, 4.0, 5.0);
+    let y = Matrix1x3::new(6.0, 11.0, 14.0);
+    model.update_bulk(&x, &y);
+    
+    let x0 = Matrix2x1::new(0.5, 1.0);
+    let yh = model.predict(&x0);
+    assert_eq!(yh[0], 3.0); // XXX approx
+}
