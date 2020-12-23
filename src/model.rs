@@ -3,7 +3,7 @@ extern crate nalgebra as na;
 type Fxx = f32;
 
 use na::{MatrixMN, VectorN };
-use na::{Dim, DimName, DimAdd, DimSum, U1};
+use na::{DimName, DimAdd, DimSum, U1};
 use na::{DefaultAllocator};
 use na::allocator::{Allocator, Reallocator};
 use na::storage::Owned;
@@ -66,21 +66,29 @@ impl<M, N> LinearModel<M, N> where
         self.ws * x + self.bs
     }
 
-    pub fn update(&mut self, x: &VectorN<Fxx, M>, y: &VectorN<Fxx, N>) -> () {
-        // XXX
+    pub fn update(&mut self, x: &VectorN<Fxx, M>, y: &VectorN<Fxx, N>) -> ()
+        where DefaultAllocator: Allocator<Fxx, U1, M>
+    {
+        let update_size: Fxx = 0.25 / (M::dim() as Fxx); // XXX constant?
+        let yh = self.predict(x);
+        let err = yh - y;
+        let deltas = 2.0 * update_size * err;
+        self.bs = self.bs - deltas;
+        self.ws = self.ws - deltas * x.transpose();
     }
 
     pub fn update_bulk<D: DimName>(&mut self,
                                    x: &MatrixMN<Fxx, M, D>,
                                    y: &MatrixMN<Fxx, N, D>) -> () where 
-        Owned<Fxx, M, D>: Copy,
         DefaultAllocator: Reallocator<Fxx, M, D, DimSum<M, U1>, D> +
             Reallocator<Fxx, DimSum<M, U1>, D, D, DimSum<M, U1>> +
             Allocator<Fxx, N, D> +
             Allocator<Fxx, N, DimSum<M, U1>> +
             Allocator<Fxx, DimSum<M, U1>, DimSum<M, U1>> +
             Allocator<Fxx, D, M> + Allocator<Fxx, M, D> + Allocator<Fxx, M, M>,
+        Owned<Fxx, M, D>: Copy,
         Owned<Fxx, D, DimSum<M, U1>>: Copy,
+        Owned<Fxx, DimSum<M, U1>, D>: Copy,
     {
         let x1 = x.insert_row(M::dim(), 1.0); // M+1 x D
         let x1t = x1.transpose();             // D x M+1
@@ -92,7 +100,7 @@ impl<M, N> LinearModel<M, N> where
             self.ws = MatrixMN::<Fxx, N, M>::from_column_slice(
                 w1.columns(0, M::dim()).into_owned().as_slice());
         } else {
-            panic!("cannot update_bulk")
+            panic!("cannot update_bulk, no inverse")
         }
     }
 }

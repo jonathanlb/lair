@@ -18,11 +18,13 @@ fn update_linear_model() {
     let y0 = Matrix1x2::new(2.0, 1.0) * Matrix2x1::new(1.0, 1.0);
     model.update(&x0, &y0);
     let yh0 = model.predict(&x0);
+    let e0 = Fxx::powf(y0[0] - yh0[0], 2.0);
 
     model.update(&x0, &y0);
     let yh1 = model.predict(&x0);
+    let e1 = Fxx::powf(y0[0] - yh1[0], 2.0);
      
-    // XXX check that yh1 is closer to 3 than yh0
+    assert!(e0 - e1 > 0.0, "failed to improve on update {} -> {}", e0, e1);
 }
 
 #[test]
