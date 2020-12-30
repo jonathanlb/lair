@@ -4,7 +4,7 @@ use rand::distributions::{Distribution, Normal};
 extern crate lair;
 extern crate nalgebra as na;
 
-use lair::{LinearModel, Model};
+use lair::{Fxx, LinearModel, Model};
 use na::{Matrix1x3, Matrix2x1, Matrix2x3};
 use na::{U1, U2};
 
@@ -17,7 +17,7 @@ fn solve_simple_linear(sigma: f64) -> () {
     // Half of the benchmark time is spent here.
     y = Matrix1x3::from_iterator(
         y.iter()
-            .map(|&x| x + normal.sample(&mut rand::thread_rng()) as f32),
+            .map(|&x| x + normal.sample(&mut rand::thread_rng()) as Fxx),
     );
 
     assert_eq!(model.update_bulk(&x, &y), Ok(()));
