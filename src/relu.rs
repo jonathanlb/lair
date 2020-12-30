@@ -14,10 +14,12 @@ where
     M: DimName,
     N: DimName,
 {
+    #[inline]
     fn num_inputs(&self) -> usize {
         M::dim()
     }
 
+    #[inline]
     fn num_outputs(&self) -> usize {
         N::dim()
     }
@@ -27,7 +29,7 @@ where
         DefaultAllocator: Allocator<Fxx, M> + Allocator<Fxx, N>,
     {
         let mut y = self.model.predict(x);
-        for i in 0..N::dim() {
+        for i in 0..self.num_outputs() {
             if y[i] < 0.0 {
                 y[i] = 0.0;
             }
@@ -39,7 +41,15 @@ where
     where
         DefaultAllocator: Allocator<Fxx, M> + Allocator<Fxx, N>,
     {
-        self.model.update(x, y) // XXX TODO
+        let mut yh = self.model.predict(x);
+        for i in 0..self.num_outputs() {
+            if !(yh[i] <= 0.0 && y[i] <= 0.0) {
+                // correct the prediction if the underlying model didn't
+                // predict correctly/a thresholded value
+                yh[i] = y[i];
+            }
+        }
+        self.model.update(x, &yh)
     }
 }
 

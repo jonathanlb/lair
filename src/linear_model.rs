@@ -29,10 +29,12 @@ where
     Owned<Fxx, N>: Copy,
     Owned<Fxx, N, M>: Copy,
 {
+    #[inline]
     fn num_inputs(&self) -> usize {
         M::dim()
     }
 
+    #[inline]
     fn num_outputs(&self) -> usize {
         N::dim()
     }
@@ -48,7 +50,7 @@ where
     where
         DefaultAllocator: Allocator<Fxx, M> + Allocator<Fxx, N>,
     {
-        let update_size: Fxx = 0.25 / (M::dim() as Fxx); // XXX constant?
+        let update_size: Fxx = 0.25 / (self.num_inputs() as Fxx); // XXX constant?
         let yh = self.predict(x);
         let err = yh - y;
         let deltas = 2.0 * update_size * err;
@@ -100,15 +102,15 @@ where
         Owned<Fxx, DimSum<M, U1>, D>: Copy,
         Owned<Fxx, DimSum<M, U1>, DimSum<M, U1>>: Copy,
     {
-        let x1 = x.insert_row(M::dim(), 1.0); // M+1 x D
+        let x1 = x.insert_row(self.num_inputs(), 1.0); // M+1 x D
         let x1t = x1.transpose(); // D x M+1
         let xxt = x1 * x1t; // M+1 x M+1
 
         if let Some(xxt1) = xxt.try_inverse() {
             let w1 = y * x1t * xxt1; // N x M+1, the last column represents b
-            self.bs = w1.column(M::dim()).into_owned();
+            self.bs = w1.column(self.num_inputs()).into_owned();
             self.ws = MatrixMN::<Fxx, N, M>::from_column_slice(
-                w1.columns(0, M::dim()).into_owned().as_slice(),
+                w1.columns(0, self.num_inputs()).into_owned().as_slice(),
             );
             Ok(())
         } else {
