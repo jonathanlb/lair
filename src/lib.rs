@@ -1,5 +1,8 @@
 #![crate_name = "lair"]
 
+mod layered_model;
+pub use layered_model::LayeredModel;
+
 mod linear_model;
 pub use linear_model::LinearModel;
 
