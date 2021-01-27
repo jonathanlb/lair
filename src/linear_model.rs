@@ -13,7 +13,8 @@ where
     DefaultAllocator: Allocator<Fxx, M, N>,
 {
     for i in 0..x.len() {
-        if x[i].is_nan() {
+        let xi = x[i];
+        if xi.is_nan() || xi.is_infinite() {
             return true;
         }
     }
@@ -35,9 +36,17 @@ where
         + Allocator<Fxx, U1, M>
         + Allocator<Fxx, U1, N>
         + Allocator<Fxx, M, U1>
-        + Allocator<Fxx, M, N>,
+        + Allocator<Fxx, M, N>
+        + Allocator<usize, M>
+        + Allocator<usize, M, M>
+        + Allocator<usize, N>
+        + Allocator<usize, N, N>,
     Owned<Fxx, N>: Copy,
     Owned<Fxx, N, M>: Copy,
+    Owned<usize, M>: Copy,
+    Owned<usize, M, M>: Copy,
+    Owned<usize, N>: Copy,
+    Owned<usize, N, N>: Copy,
 {
     hyper: &'a UpdateParams,
     ws: MatrixMN<Fxx, N, M>,
@@ -53,26 +62,44 @@ where
         + Allocator<Fxx, U1, M>
         + Allocator<Fxx, U1, N>
         + Allocator<Fxx, M, U1>
-        + Allocator<Fxx, M, N>,
+        + Allocator<Fxx, M, N>
+        + Allocator<usize, M>
+        + Allocator<usize, M, M>
+        + Allocator<usize, N>
+        + Allocator<usize, N, N>,
     Owned<Fxx, N>: Copy,
     Owned<Fxx, N, M>: Copy,
+    Owned<usize, M>: Copy,
+    Owned<usize, M, M>: Copy,
+    Owned<usize, N>: Copy,
+    Owned<usize, N, N>: Copy,
 {
     //
-    // XXX: must handle NaN trouble.
+    // TODO: handle NaN trouble better.  There is also trouble printing ws in 
+    // implementing Mul for Copy trait
     //
     fn backpropagate(&mut self, x: &VectorN<Fxx, M>, de_dy: &VectorN<Fxx, N>) -> VectorN<Fxx, M> {
+        assert!(
+            !has_nan(&x) && !has_nan(&de_dy),
+            "backpropagate input error x={} de_dy={}",
+            x,
+            de_dy
+        );
+        assert!(!has_nan(&self.ws), "backpropagate-3 NaN ws");
         let input_error = (de_dy.transpose() * self.ws).transpose();
-        if has_nan(&input_error) {
-            panic!("backpropagate-0 NaN");
-        }
+        assert!(
+            !has_nan(&input_error),
+            "backpropagate unstable return={} from {}T * ",
+            input_error,
+            de_dy
+        ); // trouble printing self.ws
 
         let update_size: Fxx = self.hyper.step_size / (self.num_inputs() as Fxx);
         let deltas = 2.0 * update_size * de_dy;
         self.bs = self.bs - deltas;
         self.ws = self.ws - deltas * x.transpose();
-        if has_nan(&self.ws) {
-            panic!("backpropagate-1 NaN");
-        }
+        // trouble printing self.ws
+        assert!(!has_nan(&self.ws), "backpropagate NaN update weights");
         input_error
     }
 
@@ -112,9 +139,17 @@ where
         + Allocator<Fxx, U1, M>
         + Allocator<Fxx, U1, N>
         + Allocator<Fxx, M, U1>
-        + Allocator<Fxx, M, N>,
+        + Allocator<Fxx, M, N>
+        + Allocator<usize, M>
+        + Allocator<usize, M, M>
+        + Allocator<usize, N>
+        + Allocator<usize, N, N>,
     Owned<Fxx, N>: Copy,
     Owned<Fxx, N, M>: Copy,
+    Owned<usize, M>: Copy,
+    Owned<usize, M, M>: Copy,
+    Owned<usize, N>: Copy,
+    Owned<usize, N, N>: Copy,
 {
     pub fn merge(&mut self, a: Fxx, other: &LinearModel<M, N>) -> () {
         self.ws = (1.0 - a) * self.ws + a * other.ws;
