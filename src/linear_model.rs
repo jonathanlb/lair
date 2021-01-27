@@ -6,20 +6,7 @@ use na::DefaultAllocator;
 use na::{DimAdd, DimName, DimSum, U1};
 use na::{MatrixMN, VectorN};
 
-use crate::model::{Fxx, Model};
-
-fn has_nan<M: DimName, N: DimName>(x: &MatrixMN<Fxx, M, N>) -> bool
-where
-    DefaultAllocator: Allocator<Fxx, M, N>,
-{
-    for i in 0..x.len() {
-        let xi = x[i];
-        if xi.is_nan() || xi.is_infinite() {
-            return true;
-        }
-    }
-    false
-}
+use crate::model::{has_nan, Fxx, Model};
 
 #[derive(Clone, Copy, Debug)]
 pub struct UpdateParams {
@@ -75,19 +62,19 @@ where
     Owned<usize, N, N>: Copy,
 {
     //
-    // TODO: handle NaN trouble better.  There is also trouble printing ws in 
+    // TODO: handle NaN trouble better.  There is also trouble printing ws in
     // implementing Mul for Copy trait
     //
     fn backpropagate(&mut self, x: &VectorN<Fxx, M>, de_dy: &VectorN<Fxx, N>) -> VectorN<Fxx, M> {
-        assert!(
+        debug_assert!(
             !has_nan(&x) && !has_nan(&de_dy),
             "backpropagate input error x={} de_dy={}",
             x,
             de_dy
         );
-        assert!(!has_nan(&self.ws), "backpropagate-3 NaN ws");
+        debug_assert!(!has_nan(&self.ws), "backpropagate-3 NaN ws");
         let input_error = (de_dy.transpose() * self.ws).transpose();
-        assert!(
+        debug_assert!(
             !has_nan(&input_error),
             "backpropagate unstable return={} from {}T * ",
             input_error,
@@ -99,7 +86,7 @@ where
         self.bs = self.bs - deltas;
         self.ws = self.ws - deltas * x.transpose();
         // trouble printing self.ws
-        assert!(!has_nan(&self.ws), "backpropagate NaN update weights");
+        debug_assert!(!has_nan(&self.ws), "backpropagate NaN update weights");
         input_error
     }
 

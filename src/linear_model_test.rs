@@ -28,7 +28,7 @@ fn update_linear_model_improves_estimate() {
     let yh1 = model.predict(&x0);
     let e1 = Fxx::powf(y0[0] - yh1[0], 2.0);
 
-    assert!(
+    debug_assert!(
         e0 - e1 > 0.0,
         "failed to improve on update {} -> {}",
         e0,
@@ -59,7 +59,7 @@ fn update_linear_model_improves_backprop_error() {
 
     let e0 = Matrix::norm(&de0);
     let e1 = Matrix::norm(&de1);
-    assert!(
+    debug_assert!(
         e0 - e1 > -2.0 * LEARNING_PARAMS.step_size,
         "failed to improve on update {} -> {}",
         e0,
@@ -87,6 +87,6 @@ fn update_bulk_unconstrained_linear_model() {
     let updated = model.update_bulk(&x, &y);
     match updated {
         Ok(_) => panic!("update_bulk expected error from unconstrained update matrix"),
-        Err(msg) => assert!(msg.starts_with("cannot update_bulk, no inverse for")),
+        Err(msg) => debug_assert!(msg.starts_with("cannot update_bulk, no inverse for")),
     }
 }

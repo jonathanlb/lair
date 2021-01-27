@@ -5,7 +5,7 @@ pub type Fxx = f32;
 use na::allocator::Allocator;
 use na::DefaultAllocator;
 use na::DimName;
-use na::VectorN;
+use na::{MatrixMN, VectorN};
 
 pub trait Model<M: DimName, N: DimName> {
     /// Apply backpropagation to this layer/module of a neural network,
@@ -42,4 +42,17 @@ pub trait Model<M: DimName, N: DimName> {
     fn update(&mut self, x: &VectorN<Fxx, M>, y: &VectorN<Fxx, N>) -> VectorN<Fxx, M>
     where
         DefaultAllocator: Allocator<Fxx, M> + Allocator<Fxx, N>;
+}
+
+pub fn has_nan<M: DimName, N: DimName>(x: &MatrixMN<Fxx, M, N>) -> bool
+where
+    DefaultAllocator: Allocator<Fxx, M, N>,
+{
+    for i in 0..x.len() {
+        let xi = x[i];
+        if xi.is_nan() || xi.is_infinite() {
+            return true;
+        }
+    }
+    false
 }

@@ -3,11 +3,27 @@ use criterion::{criterion_group, criterion_main, Criterion};
 extern crate nalgebra as na;
 
 use lair::{Fxx, LayeredModel, LinearModel, Model, UpdateParams};
-use na::{Matrix, Matrix1, Matrix2x1};
-use na::{U1, U2};
+
+use na::allocator::Allocator;
+use na::DefaultAllocator;
+use na::{DimName, U1, U2};
+use na::{Matrix, Matrix1, Matrix2x1, MatrixMN};
+
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
+pub fn has_nan<M: DimName, N: DimName>(x: &MatrixMN<Fxx, M, N>) -> bool
+where
+    DefaultAllocator: Allocator<Fxx, M, N>,
+{
+    for i in 0..x.len() {
+        let xi = x[i];
+        if xi.is_nan() || xi.is_infinite() {
+            return true;
+        }
+    }
+    false
+}
 fn sample_input(sz: usize) -> Vec<Matrix2x1<Fxx>> {
     fn shuffled_xs(sz: usize) -> Vec<Fxx> {
         let mx = 0.5 * (sz as Fxx);
@@ -40,7 +56,10 @@ fn optimize_quadratic(learning_rate: &UpdateParams, tol: Fxx) {
         let sample = sample_input(num_samples);
         let (train, test) = sample.split_at(num_train);
         for x in train {
-            model.update(&x, &f(&x));
+            debug_assert!(!has_nan(&x), "invalid input {}", x);
+            let fx = f(&x);
+            debug_assert!(!has_nan(&fx), "invalid output {}", fx);
+            model.update(&x, &fx);
         }
 
         let msq: Fxx = test
@@ -48,9 +67,7 @@ fn optimize_quadratic(learning_rate: &UpdateParams, tol: Fxx) {
             .map(|x| {
                 let fx = f(x);
                 let y = model.predict(x);
-                if y[0].is_nan() {
-                    panic!("NaN error {} -> {} ({})", x, y, fx);
-                }
+                debug_assert!(!has_nan(&y), "NaN error {} -> {} ({})", x, y, fx);
                 Matrix::norm(&(fx - y))
             })
             .sum::<Fxx>()

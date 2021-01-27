@@ -4,7 +4,7 @@ use na::allocator::Allocator;
 use na::storage::Owned;
 use na::{DefaultAllocator, DimName, VectorN};
 
-use crate::model::{Fxx, Model};
+use crate::model::{has_nan, Fxx, Model};
 
 pub struct LayeredModel<'a, M: DimName, P: DimName, N: DimName> {
     model0: &'a mut dyn Model<M, P>,
@@ -28,14 +28,27 @@ where
     M: DimName,
     N: DimName,
     P: DimName,
-    DefaultAllocator:
-        Allocator<Fxx, N> + Allocator<Fxx, N, P> + Allocator<Fxx, P> + Allocator<Fxx, P, M>,
+    DefaultAllocator: Allocator<Fxx, N>
+        + Allocator<Fxx, N, P>
+        + Allocator<Fxx, P>
+        + Allocator<Fxx, P, M>
+        + Allocator<usize, M>
+        + Allocator<usize, N>
+        + Allocator<usize, P>,
     Owned<Fxx, N>: Copy,
+    Owned<usize, M>: Copy,
+    Owned<usize, N>: Copy,
+    Owned<usize, P>: Copy,
 {
     fn backpropagate(&mut self, x: &VectorN<Fxx, M>, de_dy: &VectorN<Fxx, N>) -> VectorN<Fxx, M>
     where
         DefaultAllocator: Allocator<Fxx, N> + Allocator<Fxx, M>,
     {
+        debug_assert!(
+            !has_nan(&x) && !has_nan(&de_dy),
+            "layered backpropagate input has nan"
+        );
+
         let p = self.model0.predict(x);
         let de_dp = self.model1.backpropagate(&p, de_dy);
         self.model0.backpropagate(x, &de_dp)
@@ -55,7 +68,9 @@ where
     where
         DefaultAllocator: Allocator<Fxx, M> + Allocator<Fxx, N>,
     {
+        debug_assert!(!has_nan(&x), "invalid input {}", x);
         let y0 = self.model0.predict(x);
+        debug_assert!(!has_nan(&y0), "invalid intermediate input {}", y0);
         self.model1.predict(&y0)
     }
 
@@ -63,10 +78,14 @@ where
     where
         DefaultAllocator: Allocator<Fxx, M> + Allocator<Fxx, N>,
     {
+        debug_assert!(!has_nan(&x) && !has_nan(&y), "layered update input has nan");
+
         let yh = self.predict(x);
         let err1 = yh - y;
+        debug_assert!(!has_nan(&err1), "error overflow {} - {} = {}", yh, y, err1);
         let p = self.model0.predict(x);
         let err0 = self.model1.backpropagate(&p, &err1);
+        debug_assert!(!has_nan(&err0), "intermediate error overflow");
         self.model0.backpropagate(x, &err0)
     }
 }
