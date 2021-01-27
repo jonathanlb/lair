@@ -5,6 +5,7 @@ pub use layered_model::LayeredModel;
 
 mod linear_model;
 pub use linear_model::LinearModel;
+pub use linear_model::UpdateParams;
 
 mod model;
 pub use model::Fxx;

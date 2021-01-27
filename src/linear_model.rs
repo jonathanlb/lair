@@ -8,27 +8,74 @@ use na::{MatrixMN, VectorN};
 
 use crate::model::{Fxx, Model};
 
+fn has_nan<M: DimName, N: DimName>(x: &MatrixMN<Fxx, M, N>) -> bool
+where
+    DefaultAllocator: Allocator<Fxx, M, N>,
+{
+    for i in 0..x.len() {
+        if x[i].is_nan() {
+            return true;
+        }
+    }
+    false
+}
+
 #[derive(Clone, Copy, Debug)]
-pub struct LinearModel<M, N>
+pub struct UpdateParams {
+    pub step_size: Fxx,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct LinearModel<'a, M, N>
 where
     M: DimName,
     N: DimName,
-    DefaultAllocator: Allocator<Fxx, N> + Allocator<Fxx, N, M> + Allocator<Fxx, U1, M>,
+    DefaultAllocator: Allocator<Fxx, N>
+        + Allocator<Fxx, N, M>
+        + Allocator<Fxx, U1, M>
+        + Allocator<Fxx, U1, N>
+        + Allocator<Fxx, M, U1>
+        + Allocator<Fxx, M, N>,
     Owned<Fxx, N>: Copy,
     Owned<Fxx, N, M>: Copy,
 {
+    hyper: &'a UpdateParams,
     ws: MatrixMN<Fxx, N, M>,
     bs: VectorN<Fxx, N>,
 }
 
-impl<M, N> Model<M, N> for LinearModel<M, N>
+impl<'a, M, N> Model<M, N> for LinearModel<'a, M, N>
 where
     M: DimName,
     N: DimName,
-    DefaultAllocator: Allocator<Fxx, N> + Allocator<Fxx, N, M> + Allocator<Fxx, U1, M>,
+    DefaultAllocator: Allocator<Fxx, N>
+        + Allocator<Fxx, N, M>
+        + Allocator<Fxx, U1, M>
+        + Allocator<Fxx, U1, N>
+        + Allocator<Fxx, M, U1>
+        + Allocator<Fxx, M, N>,
     Owned<Fxx, N>: Copy,
     Owned<Fxx, N, M>: Copy,
 {
+    //
+    // XXX: must handle NaN trouble.
+    //
+    fn backpropagate(&mut self, x: &VectorN<Fxx, M>, de_dy: &VectorN<Fxx, N>) -> VectorN<Fxx, M> {
+        let input_error = (de_dy.transpose() * self.ws).transpose();
+        if has_nan(&input_error) {
+            panic!("backpropagate-0 NaN");
+        }
+
+        let update_size: Fxx = self.hyper.step_size / (self.num_inputs() as Fxx);
+        let deltas = 2.0 * update_size * de_dy;
+        self.bs = self.bs - deltas;
+        self.ws = self.ws - deltas * x.transpose();
+        if has_nan(&self.ws) {
+            panic!("backpropagate-1 NaN");
+        }
+        input_error
+    }
+
     #[inline]
     fn num_inputs(&self) -> usize {
         M::dim()
@@ -46,25 +93,26 @@ where
         self.ws * x + self.bs
     }
 
-    fn update(&mut self, x: &VectorN<Fxx, M>, y: &VectorN<Fxx, N>) -> ()
+    fn update(&mut self, x: &VectorN<Fxx, M>, y: &VectorN<Fxx, N>) -> VectorN<Fxx, M>
     where
         DefaultAllocator: Allocator<Fxx, M> + Allocator<Fxx, N>,
     {
-        let update_size: Fxx = 0.25 / (self.num_inputs() as Fxx); // XXX constant?
         let yh = self.predict(x);
         let err = yh - y;
-        let deltas = 2.0 * update_size * err;
-        self.bs = self.bs - deltas;
-        self.ws = self.ws - deltas * x.transpose();
+        self.backpropagate(x, &err)
     }
 }
 
-impl<M, N> LinearModel<M, N>
+impl<'a, M, N> LinearModel<'a, M, N>
 where
     M: DimName + DimAdd<U1>,
     N: DimName,
-    DefaultAllocator:
-        Allocator<Fxx, M> + Allocator<Fxx, N> + Allocator<Fxx, N, M> + Allocator<Fxx, U1, M>,
+    DefaultAllocator: Allocator<Fxx, N>
+        + Allocator<Fxx, N, M>
+        + Allocator<Fxx, U1, M>
+        + Allocator<Fxx, U1, N>
+        + Allocator<Fxx, M, U1>
+        + Allocator<Fxx, M, N>,
     Owned<Fxx, N>: Copy,
     Owned<Fxx, N, M>: Copy,
 {
@@ -73,8 +121,9 @@ where
         self.bs = (1.0 - a) * self.bs + a * other.bs;
     }
 
-    pub fn new() -> Self {
+    pub fn new_random(params: &'a UpdateParams) -> Self {
         let m = LinearModel {
+            hyper: params,
             ws: MatrixMN::<Fxx, N, M>::new_random(),
             bs: VectorN::<Fxx, N>::new_random(),
         };

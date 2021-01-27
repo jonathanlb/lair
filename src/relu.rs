@@ -14,6 +14,20 @@ where
     M: DimName,
     N: DimName,
 {
+    fn backpropagate(&mut self, x: &VectorN<Fxx, M>, de_dy: &VectorN<Fxx, N>) -> VectorN<Fxx, M>
+    where
+        DefaultAllocator: Allocator<Fxx, M> + Allocator<Fxx, N>,
+    {
+        let p = self.model.predict(x);
+        let mut de_dp = VectorN::<Fxx, N>::zeros();
+        for i in 0..self.num_outputs() {
+            if p[i] > 0.0 {
+                de_dp[i] = de_dy[i];
+            }
+        }
+        self.model.backpropagate(x, &de_dp)
+    }
+
     #[inline]
     fn num_inputs(&self) -> usize {
         M::dim()
@@ -37,7 +51,7 @@ where
         y
     }
 
-    fn update(&mut self, x: &VectorN<Fxx, M>, y: &VectorN<Fxx, N>) -> ()
+    fn update(&mut self, x: &VectorN<Fxx, M>, y: &VectorN<Fxx, N>) -> VectorN<Fxx, M>
     where
         DefaultAllocator: Allocator<Fxx, M> + Allocator<Fxx, N>,
     {

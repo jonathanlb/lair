@@ -4,13 +4,22 @@ use rand::distributions::{Distribution, Normal};
 extern crate lair;
 extern crate nalgebra as na;
 
-use lair::{Fxx, LinearModel, Model};
+use lair::{Fxx, LinearModel, Model, UpdateParams};
 use na::{Matrix1x3, Matrix2x1, Matrix2x3};
 use na::{U1, U2};
 
+// Solve a simple 2-variable linear equation using least squares for
+// 3 noisy observations.
+//
+// # Arguments
+//
+//  * `sigma` - the amount of Gaussian noise to apply to the actual value
+//  to derive observations.
 fn solve_simple_linear(sigma: f64) -> () {
+    let learning_params = UpdateParams { step_size: 0.01 };
     let normal = Normal::new(0.0, sigma);
-    let mut model = LinearModel::<U2, U1>::new();
+
+    let mut model = LinearModel::<U2, U1>::new_random(&learning_params);
     let x = Matrix2x3::new(2.0, 3.0, 4.0, 1.0, 4.0, 5.0);
 
     let mut y = Matrix1x3::new(6.0, 11.0, 14.0);
@@ -25,6 +34,7 @@ fn solve_simple_linear(sigma: f64) -> () {
     let _yh = model.predict(&x0);
 }
 
+// A wrapper for optimizing a 2-variable linear model through least squares.
 fn solve_simple_linear_benchmark(c: &mut Criterion) {
     c.bench_function("solve_simple_linear", |b| {
         b.iter(|| solve_simple_linear(0.1))

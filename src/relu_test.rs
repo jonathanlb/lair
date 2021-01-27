@@ -5,11 +5,13 @@ use assert_approx_eq::assert_approx_eq;
 use na::{Matrix1, Matrix1x3, Matrix2x1, Matrix2x3};
 use na::{U1, U2};
 
-use crate::{LinearModel, Model};
+use crate::{LinearModel, Model, UpdateParams};
+
+const LEARNING_PARAMS: UpdateParams = UpdateParams { step_size: 0.01 };
 
 #[test]
 fn create_linear_model() {
-    let mut underlying_model = LinearModel::<U2, U1>::new();
+    let mut underlying_model = LinearModel::<U2, U1>::new_random(&LEARNING_PARAMS);
     let model = Relu::<U2, U1> {
         model: &mut underlying_model,
     };
@@ -19,7 +21,7 @@ fn create_linear_model() {
 
 #[test]
 fn thresholds() {
-    let mut underlying_model = LinearModel::<U2, U1>::new();
+    let mut underlying_model = LinearModel::<U2, U1>::new_random(&LEARNING_PARAMS);
     let x = Matrix2x3::new(2.0, 3.0, 4.0, 1.0, 4.0, 5.0);
     let y = Matrix1x3::new(6.0, 11.0, 14.0);
     assert_eq!(underlying_model.update_bulk(&x, &y), Ok(()));
@@ -38,7 +40,7 @@ fn thresholds() {
 
 #[test]
 fn thresholds_update() {
-    let mut underlying_model = LinearModel::<U2, U1>::new();
+    let mut underlying_model = LinearModel::<U2, U1>::new_random(&LEARNING_PARAMS);
     let x = Matrix2x3::new(2.0, 3.0, 4.0, 1.0, 4.0, 5.0);
     let y = Matrix1x3::new(6.0, 11.0, 14.0);
     assert_eq!(underlying_model.update_bulk(&x, &y), Ok(()));

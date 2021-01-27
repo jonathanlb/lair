@@ -2,19 +2,21 @@ use super::*;
 
 use assert_approx_eq::assert_approx_eq;
 
-use na::{Matrix1, Matrix1x2, Matrix1x3, Matrix2x1, Matrix2x3};
+use na::{Matrix, Matrix1, Matrix1x2, Matrix1x3, Matrix2x1, Matrix2x3};
 use na::{U1, U2};
+
+const LEARNING_PARAMS: UpdateParams = UpdateParams { step_size: 0.001 };
 
 #[test]
 fn create_linear_model() {
-    let model = LinearModel::<U2, U1>::new();
+    let model = LinearModel::<U2, U1>::new_random(&LEARNING_PARAMS);
     assert_eq!(model.num_inputs(), 2);
     assert_eq!(model.num_outputs(), 1);
 }
 
 #[test]
-fn update_linear_model() {
-    let mut model = LinearModel::<U2, U1>::new();
+fn update_linear_model_improves_estimate() {
+    let mut model = LinearModel::<U2, U1>::new_random(&LEARNING_PARAMS);
 
     let x0 = Matrix2x1::new(0.5, 1.0);
     let y0 = Matrix1x2::new(2.0, 1.0) * Matrix2x1::new(1.0, 1.0);
@@ -34,9 +36,40 @@ fn update_linear_model() {
     );
 }
 
+// This test seems like it should at least not degrade by approximation
+// by more than some function of the step size and weights.....
+#[test]
+fn update_linear_model_improves_backprop_error() {
+    let mut model = LinearModel::<U2, U1>::new_random(&LEARNING_PARAMS);
+    println!("model state: w={} + b={}", model.ws, model.bs);
+
+    fn f(x: &Matrix2x1<Fxx>) -> Fxx {
+        2.0 * x[0] - 0.1 * x[1] + 1.0
+    }
+
+    let x0 = Matrix2x1::new(0.5, 1.0);
+    let y0 = Matrix1::new(f(&x0));
+    let de0 = model.update(&x0, &y0);
+    println!("model state: w={} + b={}", model.ws, model.bs);
+
+    let x1 = Matrix2x1::new(0.5, 1.0);
+    let y1 = Matrix1::new(f(&x1));
+    let de1 = model.update(&x1, &y1);
+    println!("model state: w={} + b={}", model.ws, model.bs);
+
+    let e0 = Matrix::norm(&de0);
+    let e1 = Matrix::norm(&de1);
+    assert!(
+        e0 - e1 > -2.0 * LEARNING_PARAMS.step_size,
+        "failed to improve on update {} -> {}",
+        e0,
+        e1
+    );
+}
+
 #[test]
 fn update_bulk_linear_model() {
-    let mut model = LinearModel::<U2, U1>::new();
+    let mut model = LinearModel::<U2, U1>::new_random(&LEARNING_PARAMS);
     let x = Matrix2x3::new(2.0, 3.0, 4.0, 1.0, 4.0, 5.0);
     let y = Matrix1x3::new(6.0, 11.0, 14.0);
     assert_eq!(model.update_bulk(&x, &y), Ok(()));
@@ -48,7 +81,7 @@ fn update_bulk_linear_model() {
 
 #[test]
 fn update_bulk_unconstrained_linear_model() {
-    let mut model = LinearModel::<U2, U1>::new();
+    let mut model = LinearModel::<U2, U1>::new_random(&LEARNING_PARAMS);
     let x = Matrix2x1::new(2.0, 1.0);
     let y = Matrix1::new(6.0);
     let updated = model.update_bulk(&x, &y);
