@@ -16,7 +16,7 @@ fn create_linear_model() {
 
 #[test]
 fn update_linear_model_improves_estimate() {
-    let mut model = LinearModel::<U2, U1>::new_random(&LEARNING_PARAMS);
+    let mut model = LinearModel::<U2, U1>::new_normal(&LEARNING_PARAMS, 100.0);
 
     let x0 = Matrix2x1::new(0.5, 1.0);
     let y0 = Matrix1x2::new(2.0, 1.0) * Matrix2x1::new(1.0, 1.0);
@@ -40,7 +40,7 @@ fn update_linear_model_improves_estimate() {
 // by more than some function of the step size and weights.....
 #[test]
 fn update_linear_model_improves_backprop_error() {
-    let mut model = LinearModel::<U2, U1>::new_random(&LEARNING_PARAMS);
+    let mut model = LinearModel::<U2, U1>::new_normal(&LEARNING_PARAMS, 100.0);
     println!("model state: w={} + b={}", model.ws, model.bs);
 
     fn f(x: &Matrix2x1<Fxx>) -> Fxx {

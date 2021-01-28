@@ -44,8 +44,8 @@ fn optimize_quadratic(learning_rate: &UpdateParams, tol: Fxx) {
         Matrix1::<Fxx>::new(0.5 * x[0] - 4.0 * x[1] - 6.0)
     }
 
-    let mut m0 = LinearModel::<U2, U2>::new_random(&learning_rate);
-    let mut m1 = LinearModel::<U2, U1>::new_random(&learning_rate);
+    let mut m0 = LinearModel::<U2, U2>::new_normal(&learning_rate, 10.0);
+    let mut m1 = LinearModel::<U2, U1>::new_normal(&learning_rate, 10.0);
     let mut model = LayeredModel::<U2, U2, U1>::new(&mut m0, &mut m1);
 
     let tol2 = Fxx::powf(tol, 2.0);

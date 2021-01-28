@@ -6,6 +6,8 @@ use na::DefaultAllocator;
 use na::{DimAdd, DimName, DimSum, U1};
 use na::{MatrixMN, VectorN};
 
+use rand::distributions::{Distribution, Normal};
+
 use crate::model::{has_nan, Fxx, Model};
 
 #[derive(Clone, Copy, Debug)]
@@ -141,6 +143,23 @@ where
     pub fn merge(&mut self, a: Fxx, other: &LinearModel<M, N>) -> () {
         self.ws = (1.0 - a) * self.ws + a * other.ws;
         self.bs = (1.0 - a) * self.bs + a * other.bs;
+    }
+
+    pub fn new_normal(params: &'a UpdateParams, std: Fxx) -> Self {
+        let normal = Normal::new(0.0, std as f64);
+        let mut rng = rand::thread_rng();
+
+        macro_rules! rand {
+            () => {
+                |_r, _c| normal.sample(&mut rng) as Fxx
+            };
+        }
+        let m = LinearModel {
+            hyper: params,
+            ws: MatrixMN::<Fxx, N, M>::from_fn(rand!()),
+            bs: VectorN::<Fxx, N>::from_fn(rand!()),
+        };
+        m
     }
 
     pub fn new_random(params: &'a UpdateParams) -> Self {
