@@ -1,7 +1,10 @@
 extern crate nalgebra as na;
 
+use log::debug;
+
 use na::allocator::Allocator;
 use na::storage::Owned;
+use na::Matrix;
 use na::{DefaultAllocator, DimName, VectorN};
 
 use crate::model::{has_nan, Fxx, Model};
@@ -50,8 +53,26 @@ where
         );
 
         let p = self.model0.predict(x);
+        debug_assert!(
+            !has_nan(&p),
+            "layered intermediate result overflow m0({}) -> {}",
+            x,
+            p
+        );
+
         let de_dp = self.model1.backpropagate(&p, de_dy);
-        self.model0.backpropagate(x, &de_dp)
+        debug_assert!(
+            !has_nan(&de_dp),
+            "layered intermediate error overflow at m1({}) de_dy={} -> de_dp={}",
+            p,
+            de_dy,
+            de_dp
+        );
+        debug!("|de_dp|={}|", Matrix::norm(&de_dp));
+
+        let de_dx = self.model0.backpropagate(x, &de_dp);
+        debug!("|de_dx|={}", Matrix::norm(&de_dx));
+        de_dx
     }
 
     #[inline]
@@ -81,12 +102,16 @@ where
         debug_assert!(!has_nan(&x) && !has_nan(&y), "layered update input has nan");
 
         let yh = self.predict(x);
-        let err1 = yh - y;
-        debug_assert!(!has_nan(&err1), "error overflow {} - {} = {}", yh, y, err1);
-        let p = self.model0.predict(x);
-        let err0 = self.model1.backpropagate(&p, &err1);
-        debug_assert!(!has_nan(&err0), "intermediate error overflow");
-        self.model0.backpropagate(x, &err0)
+        let err = yh - y;
+        debug_assert!(
+            !has_nan(&err) && !has_nan(&yh),
+            "error overflow {} - {} = {}",
+            yh,
+            y,
+            err
+        );
+
+        self.backpropagate(x, &err)
     }
 }
 

@@ -1,4 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use log::debug;
 
 extern crate nalgebra as na;
 
@@ -48,7 +49,6 @@ fn optimize_quadratic(learning_rate: &UpdateParams, tol: Fxx) {
     let mut m1 = LinearModel::<U2, U1>::new_normal(&learning_rate, 10.0);
     let mut model = LayeredModel::<U2, U2, U1>::new(&mut m0, &mut m1);
 
-    let tol2 = Fxx::powf(tol, 2.0);
     let num_samples = 100;
     let num_test = 20;
     let num_train = num_samples - num_test;
@@ -62,7 +62,7 @@ fn optimize_quadratic(learning_rate: &UpdateParams, tol: Fxx) {
             model.update(&x, &fx);
         }
 
-        let msq: Fxx = test
+        let me: Fxx = test
             .iter()
             .map(|x| {
                 let fx = f(x);
@@ -72,18 +72,22 @@ fn optimize_quadratic(learning_rate: &UpdateParams, tol: Fxx) {
             })
             .sum::<Fxx>()
             / (num_test as Fxx);
-        println!("mean_error: {}", msq);
-        if msq.is_nan() {
+        debug!("optimize_quadratic {} mean_error={}", me < tol, me);
+        if me.is_nan() {
             panic!("NaN error");
         }
-        if msq < tol2 {
+        if me < tol {
             break;
         }
     }
+    debug!("complete optimize_quadratic");
 }
 
+// XXX Example of need to improve numeric stability in training.
+// If step size is large we don't converge (diverge infact).
 fn optimize_quadratic_benchmark(c: &mut Criterion) {
-    let learning_rate = UpdateParams { step_size: 0.01 };
+    env_logger::init();
+    let learning_rate = UpdateParams { step_size: 1e-5 };
     let tol = 0.1;
 
     c.bench_function("optimize_quadratic", |b| {

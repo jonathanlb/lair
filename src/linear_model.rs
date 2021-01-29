@@ -78,7 +78,7 @@ where
         let input_error = (de_dy.transpose() * self.ws).transpose();
         debug_assert!(
             !has_nan(&input_error),
-            "backpropagate unstable return={} from {}T * ",
+            "backpropagate unstable return={} from {}T * w",
             input_error,
             de_dy
         ); // trouble printing self.ws
