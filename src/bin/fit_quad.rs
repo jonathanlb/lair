@@ -25,11 +25,7 @@ struct OptimizeParams {
 
 fn f(x: &Matrix2x1<Fxx>) -> Matrix1<Fxx> {
     // Matrix1::<Fxx>::new(0.5 * x[0] - 4.0 * x[1] - 6.0)
-    Matrix1::<Fxx>::new(
-        0.5 * x[0] * x[0] 
-        + 2.0 * x[0] * x[1] 
-        - 4.0 * x[1] * x[1] 
-        - 6.0)
+    Matrix1::<Fxx>::new(0.5 * x[0] * x[0] + 2.0 * x[0] * x[1] - 4.0 * x[1] * x[1] - 6.0)
 }
 
 fn sample_input(sz: usize) -> Vec<Matrix2x1<Fxx>> {
