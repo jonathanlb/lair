@@ -5,7 +5,10 @@ use assert_approx_eq::assert_approx_eq;
 use na::{Matrix, Matrix1, Matrix1x2, Matrix1x3, Matrix2x1, Matrix2x3};
 use na::{U1, U2};
 
-const LEARNING_PARAMS: UpdateParams = UpdateParams { step_size: 0.001 };
+const LEARNING_PARAMS: UpdateParams = UpdateParams {
+    step_size: 0.001,
+    l2_reg: 0.0,
+};
 
 #[test]
 fn create_linear_model() {

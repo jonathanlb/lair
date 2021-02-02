@@ -13,6 +13,7 @@ use crate::model::{has_nan, Fxx, Model};
 #[derive(Clone, Copy, Debug)]
 pub struct UpdateParams {
     pub step_size: Fxx,
+    pub l2_reg: Fxx,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -86,7 +87,7 @@ where
         let update_size: Fxx = self.hyper.step_size / (self.num_inputs() as Fxx);
         let deltas = 2.0 * update_size * de_dy;
         self.bs = self.bs - deltas;
-        self.ws = self.ws - deltas * x.transpose();
+        self.ws = (1.0 - self.hyper.l2_reg) * self.ws - deltas * x.transpose();
         // trouble printing self.ws
         debug_assert!(!has_nan(&self.ws), "backpropagate NaN update weights");
         input_error

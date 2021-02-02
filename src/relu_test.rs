@@ -7,7 +7,10 @@ use na::{U1, U2};
 
 use crate::{LinearModel, Model, UpdateParams};
 
-const LEARNING_PARAMS: UpdateParams = UpdateParams { step_size: 0.01 };
+const LEARNING_PARAMS: UpdateParams = UpdateParams {
+    step_size: 0.01,
+    l2_reg: 0.0,
+};
 
 #[test]
 fn create_linear_model() {

@@ -1,8 +1,10 @@
 extern crate nalgebra as na;
 
 use lair::{Fxx, LayeredModel, LinearModel, Model, UpdateParams};
+use log::debug;
 use na::{Matrix, Matrix1, Matrix2x1};
 use na::{U1, U2};
+use rand::distributions::{Distribution, Uniform};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use structopt::StructOpt;
@@ -21,6 +23,8 @@ struct OptimizeParams {
     test_batch: usize,
     #[structopt(short = "B", long = "train_batch", default_value = "80")]
     train_batch: usize,
+    #[structopt(short = "l", long = "l2", default_value = "0.0")]
+    l2: Fxx,
 }
 
 fn f(x: &Matrix2x1<Fxx>) -> Matrix1<Fxx> {
@@ -30,9 +34,11 @@ fn f(x: &Matrix2x1<Fxx>) -> Matrix1<Fxx> {
 
 fn sample_input(sz: usize) -> Vec<Matrix2x1<Fxx>> {
     fn shuffled_xs(sz: usize) -> Vec<Fxx> {
-        let mx = 0.5 * (sz as Fxx);
-        let mut xs: Vec<Fxx> = (0..sz).map(|x| 0.1 * ((x as Fxx) - mx)).collect();
-        xs.shuffle(&mut thread_rng());
+        const MX_ABS: Fxx = 10.0;
+        let mut rng = thread_rng();
+        let dist = Uniform::from(-MX_ABS..MX_ABS);
+        let mut xs: Vec<Fxx> = (0..sz).map(|_| dist.sample(&mut rng)).collect();
+        xs.shuffle(&mut rng);
         xs
     }
 
@@ -46,6 +52,7 @@ fn sample_input(sz: usize) -> Vec<Matrix2x1<Fxx>> {
 fn optimize_quadratic(params: &OptimizeParams) {
     let learning_rate = UpdateParams {
         step_size: params.step_size,
+        l2_reg: params.l2,
     };
 
     let mut m0 = LinearModel::<U2, U2>::new_random(&learning_rate);
@@ -58,7 +65,18 @@ fn optimize_quadratic(params: &OptimizeParams) {
         let sample = sample_input(params.test_batch + params.train_batch);
         let (train, test) = sample.split_at(params.train_batch);
         for x in train {
-            model.update(&x, &f(&x));
+            let y = f(&x);
+            let yh = model.predict(&x);
+            let e = model.update(&x, &y);
+            debug!(
+                "({},{}) -> {}/{} e={} de={}",
+                x[0],
+                x[1],
+                y[0],
+                yh[0],
+                Matrix::norm(&(yh - y)),
+                Matrix::norm(&e)
+            );
         }
 
         let err: Fxx = test
