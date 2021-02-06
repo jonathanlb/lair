@@ -1,10 +1,11 @@
 extern crate nalgebra as na;
 
 use crate::model::{has_nan, Fxx};
+use log::debug;
 use na::allocator::Allocator;
 use na::storage::Owned;
 use na::DefaultAllocator;
-use na::{DimName, MatrixMN, VectorN};
+use na::{DimName, Matrix, MatrixMN, VectorN};
 
 #[derive(Clone, Copy, Debug)]
 pub struct UpdateParams {
@@ -44,6 +45,9 @@ impl<'a> SGDTrainer<'a> {
     }
 }
 
+///
+/// Just apply the gradient update at every iteration.
+///
 impl<'a, M, N> GradientTrainer<M, N> for SGDTrainer<'a>
 where
     M: DimName,
@@ -62,13 +66,19 @@ where
         let step_size = self.update_params.step_size / (M::dim() as Fxx);
         let bias_result = bias - step_size * bias_gradient;
         let ws_result = (1.0 - self.update_params.l2_reg) * weights - step_size * gradient;
-        // trouble printing weights
         debug_assert!(!has_nan(&ws_result), "NaN update weights");
+        debug!(
+            "update ({}x{}) |w|={} |b|={}",
+            N::dim(),
+            M::dim(),
+            Matrix::norm(&ws_result),
+            Matrix::norm(&bias_result)
+        );
         Some((ws_result, bias_result))
     }
 }
 
-// #[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub struct BatchTrainer<'a, M, N>
 where
     M: DimName,
@@ -98,6 +108,9 @@ where
     }
 }
 
+///
+/// Apply gradient updates at intervals.
+///
 impl<'a, M, N> GradientTrainer<M, N> for BatchTrainer<'a, M, N>
 where
     M: DimName,

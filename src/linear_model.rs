@@ -9,14 +9,9 @@ use na::{MatrixMN, VectorN};
 use rand::distributions::{Distribution, Normal};
 
 use crate::model::{has_nan, Fxx, Model};
+use crate::trainer::GradientTrainer;
 
-#[derive(Clone, Copy, Debug)]
-pub struct UpdateParams {
-    pub step_size: Fxx,
-    pub l2_reg: Fxx,
-}
-
-#[derive(Clone, Copy, Debug)]
+// #[derive(Clone, Copy, Debug)]
 pub struct LinearModel<'a, M, N>
 where
     M: DimName,
@@ -38,7 +33,7 @@ where
     Owned<usize, N>: Copy,
     Owned<usize, N, N>: Copy,
 {
-    hyper: &'a UpdateParams,
+    trainer: &'a mut dyn GradientTrainer<M, N>,
     ws: MatrixMN<Fxx, N, M>,
     bs: VectorN<Fxx, N>,
 }
@@ -84,12 +79,14 @@ where
             de_dy
         ); // trouble printing self.ws
 
-        let update_size: Fxx = self.hyper.step_size / (self.num_inputs() as Fxx);
-        let deltas = 2.0 * update_size * de_dy;
-        self.bs = self.bs - deltas;
-        self.ws = (1.0 - self.hyper.l2_reg) * self.ws - deltas * x.transpose();
-        // trouble printing self.ws
-        debug_assert!(!has_nan(&self.ws), "backpropagate NaN update weights");
+        let grad = de_dy * x.transpose();
+        match self.trainer.train(&self.ws, &self.bs, &grad, de_dy) {
+            Some((ws, bs)) => {
+                self.ws = ws;
+                self.bs = bs;
+            }
+            None => (),
+        }
         input_error
     }
 
@@ -146,7 +143,7 @@ where
         self.bs = (1.0 - a) * self.bs + a * other.bs;
     }
 
-    pub fn new_normal(params: &'a UpdateParams, std: Fxx) -> Self {
+    pub fn new_normal(trainer: &'a mut dyn GradientTrainer<M, N>, std: Fxx) -> Self {
         let normal = Normal::new(0.0, std as f64);
         let mut rng = rand::thread_rng();
 
@@ -156,16 +153,16 @@ where
             };
         }
         let m = LinearModel {
-            hyper: params,
+            trainer: trainer,
             ws: MatrixMN::<Fxx, N, M>::from_fn(rand!()),
             bs: VectorN::<Fxx, N>::from_fn(rand!()),
         };
         m
     }
 
-    pub fn new_random(params: &'a UpdateParams) -> Self {
+    pub fn new_random(trainer: &'a mut dyn GradientTrainer<M, N>) -> Self {
         let m = LinearModel {
-            hyper: params,
+            trainer: trainer,
             ws: MatrixMN::<Fxx, N, M>::new_random(),
             bs: VectorN::<Fxx, N>::new_random(),
         };

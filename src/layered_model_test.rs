@@ -5,7 +5,7 @@ use na::{U1, U2, U3};
 
 use rand::distributions::{Distribution, Normal};
 
-use crate::{LinearModel, Model, UpdateParams};
+use crate::{LinearModel, Model, SGDTrainer, UpdateParams};
 
 const LEARNING_PARAMS: UpdateParams = UpdateParams {
     step_size: 1e-6,
@@ -21,8 +21,10 @@ fn init() {
 
 #[test]
 fn create_layered_model() {
-    let mut model0 = LinearModel::<U3, U2>::new_random(&LEARNING_PARAMS);
-    let mut model1 = LinearModel::<U2, U1>::new_random(&LEARNING_PARAMS);
+    let mut train0 = SGDTrainer::new(&LEARNING_PARAMS);
+    let mut model0 = LinearModel::<U3, U2>::new_random(&mut train0);
+    let mut train1 = SGDTrainer::new(&LEARNING_PARAMS);
+    let mut model1 = LinearModel::<U2, U1>::new_random(&mut train1);
     let model = LayeredModel::<U3, U2, U1> {
         model0: &mut model0,
         model1: &mut model1,
@@ -56,8 +58,10 @@ fn eval_model(model: &dyn Model<U3, U1>, n: usize) -> Fxx {
 
 #[test]
 fn computes_gradient() {
-    let mut model0 = LinearModel::<U3, U2>::new_normal(&LEARNING_PARAMS, 10.0);
-    let mut model1 = LinearModel::<U2, U1>::new_normal(&LEARNING_PARAMS, 10.0);
+    let mut train0 = SGDTrainer::new(&LEARNING_PARAMS);
+    let mut model0 = LinearModel::<U3, U2>::new_normal(&mut train0, 10.0);
+    let mut train1 = SGDTrainer::new(&LEARNING_PARAMS);
+    let mut model1 = LinearModel::<U2, U1>::new_normal(&mut train1, 10.0);
     let mut model = LayeredModel::<U3, U2, U1> {
         model0: &mut model0,
         model1: &mut model1,
@@ -89,8 +93,10 @@ fn computes_gradient() {
 //
 #[test]
 fn updates() {
-    let mut model0 = LinearModel::<U3, U2>::new_normal(&LEARNING_PARAMS, 10.0);
-    let mut model1 = LinearModel::<U2, U1>::new_normal(&LEARNING_PARAMS, 10.0);
+    let mut train0 = SGDTrainer::new(&LEARNING_PARAMS);
+    let mut model0 = LinearModel::<U3, U2>::new_normal(&mut train0, 10.0);
+    let mut train1 = SGDTrainer::new(&LEARNING_PARAMS);
+    let mut model1 = LinearModel::<U2, U1>::new_normal(&mut train1, 10.0);
     let mut model = LayeredModel::<U3, U2, U1> {
         model0: &mut model0,
         model1: &mut model1,
@@ -112,7 +118,7 @@ fn updates() {
             Matrix::norm(&e),
             e.transpose()
         );
-        println!("rms={}\n", eval_model(&model, 10).sqrt());
+        println!("mean_error={}\n", eval_model(&model, 10).sqrt());
     }
     let e1 = eval_model(&model, 10);
     println!("rms error {} -> {}", e0.sqrt(), e1.sqrt());

@@ -1,6 +1,8 @@
 extern crate nalgebra as na;
 
-use lair::{Fxx, LayeredModel, LinearModel, Model, UpdateParams};
+use lair::{
+    BatchTrainer, Fxx, GradientTrainer, LayeredModel, LinearModel, Model, SGDTrainer, UpdateParams,
+};
 use log::debug;
 use na::{Matrix, Matrix1, Matrix2x1};
 use na::{U1, U2};
@@ -17,6 +19,8 @@ use structopt::StructOpt;
 struct OptimizeParams {
     #[structopt(short = "n", long = "iter", default_value = "100")]
     max_iter: usize,
+    #[structopt(short = "m", long = "mini-batch", default_value = "0")]
+    mini_batch: usize,
     #[structopt(short = "s", long = "step", default_value = "1e-3")]
     step_size: Fxx,
     #[structopt(short = "b", long = "test_size", default_value = "20")]
@@ -54,9 +58,25 @@ fn optimize_quadratic(params: &OptimizeParams) {
         step_size: params.step_size,
         l2_reg: params.l2,
     };
+    let mut train0: Box<dyn GradientTrainer<U2, U2>> = if params.mini_batch > 0 {
+        Box::new(BatchTrainer::<U2, U2>::new(
+            &learning_rate,
+            params.mini_batch,
+        ))
+    } else {
+        Box::new(SGDTrainer::new(&learning_rate))
+    };
+    let mut m0 = LinearModel::<U2, U2>::new_random(&mut *train0);
 
-    let mut m0 = LinearModel::<U2, U2>::new_random(&learning_rate);
-    let mut m1 = LinearModel::<U2, U1>::new_random(&learning_rate);
+    let mut train1: Box<dyn GradientTrainer<U2, U1>> = if params.mini_batch > 0 {
+        Box::new(BatchTrainer::<U2, U1>::new(
+            &learning_rate,
+            params.mini_batch,
+        ))
+    } else {
+        Box::new(SGDTrainer::new(&learning_rate))
+    };
+    let mut m1 = LinearModel::<U2, U1>::new_random(&mut *train1);
     let mut model = LayeredModel::<U2, U2, U1>::new(&mut m0, &mut m1);
 
     let mut i = 0;
@@ -68,23 +88,37 @@ fn optimize_quadratic(params: &OptimizeParams) {
             let y = f(&x);
             let yh = model.predict(&x);
             let e = model.update(&x, &y);
+            let yh1 = model.predict(&x);
             debug!(
-                "({},{}) -> {}/{} e={} de={}",
+                "({},{}) -> {}/{} e={} de={} delta={}",
                 x[0],
                 x[1],
                 y[0],
                 yh[0],
                 Matrix::norm(&(yh - y)),
-                Matrix::norm(&e)
+                Matrix::norm(&e),
+                Matrix::norm(&(yh - y)) - Matrix::norm(&(yh1 - y)),
             );
         }
 
-        let err: Fxx = test
+        let error_sums = test
             .iter()
-            .map(|x| Matrix::norm(&(f(x) - model.predict(x))))
-            .sum::<Fxx>()
-            / (params.test_batch as Fxx);
-        println!("{} {}", i * params.train_batch, err);
+            .map(|x| {
+                let y = f(x);
+                let yh = model.predict(x);
+                let n = Matrix::norm(&(yh - y));
+                (n, n * n)
+            })
+            .fold((0.0, 0.0), |sum, i| (sum.0 + i.0, sum.1 + i.1));
+
+        let mean_error = error_sums.0 / (params.test_batch as Fxx);
+        let mean2_error = error_sums.1 / (params.test_batch as Fxx);
+        println!(
+            "{} {} {}",
+            i * params.train_batch,
+            mean_error,
+            (mean2_error - mean_error.powi(2)).sqrt()
+        );
     }
 }
 
@@ -95,8 +129,8 @@ fn main() {
     env_logger::init();
     let params = OptimizeParams::from_args();
     println!(
-        "# step={} n_train={} n_test={}",
-        params.step_size, params.train_batch, params.test_batch
+        "# step={} n_train={} n_test={} mini_batch={}",
+        params.step_size, params.train_batch, params.test_batch, params.mini_batch
     );
     optimize_quadratic(&params);
 }

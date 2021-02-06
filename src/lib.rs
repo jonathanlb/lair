@@ -5,7 +5,6 @@ pub use layered_model::LayeredModel;
 
 mod linear_model;
 pub use linear_model::LinearModel;
-pub use linear_model::UpdateParams;
 
 mod model;
 pub use model::Fxx;
@@ -13,3 +12,9 @@ pub use model::Model;
 
 mod relu;
 pub use relu::Relu;
+
+mod trainer;
+pub use trainer::BatchTrainer;
+pub use trainer::GradientTrainer;
+pub use trainer::SGDTrainer;
+pub use trainer::UpdateParams;

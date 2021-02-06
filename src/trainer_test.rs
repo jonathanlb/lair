@@ -45,4 +45,6 @@ fn batch_trainer_updates() {
             VectorN::<Fxx, U1>::new(-0.00025)
         ))
     );
+
+    assert_eq!(bt.train(&ws, &b, &g0, &bg0), None);
 }
