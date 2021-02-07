@@ -16,9 +16,7 @@ const LEARNING_PARAMS: UpdateParams = UpdateParams {
 fn create_linear_model() {
     let mut trainer = SGDTrainer::new(&LEARNING_PARAMS);
     let mut underlying_model = LinearModel::<U2, U1>::new_random(&mut trainer);
-    let model = Relu::<U2, U1> {
-        model: &mut underlying_model,
-    };
+    let model = Relu::<U2, U1>::new(&mut underlying_model);
     assert_eq!(model.num_inputs(), 2);
     assert_eq!(model.num_outputs(), 1);
 }
@@ -31,9 +29,7 @@ fn thresholds() {
     let y = Matrix1x3::new(6.0, 11.0, 14.0);
     assert_eq!(underlying_model.update_bulk(&x, &y), Ok(()));
 
-    let model = Relu::<U2, U1> {
-        model: &mut underlying_model,
-    };
+    let model = Relu::<U2, U1>::new(&mut underlying_model);
     let x0 = Matrix2x1::new(0.5, 1.0);
     let y0 = model.predict(&x0);
     assert_approx_eq!(y0[0], 3.0);
@@ -51,9 +47,7 @@ fn thresholds_update() {
     let y = Matrix1x3::new(6.0, 11.0, 14.0);
     assert_eq!(underlying_model.update_bulk(&x, &y), Ok(()));
 
-    let mut model = Relu::<U2, U1> {
-        model: &mut underlying_model,
-    };
+    let mut model = Relu::<U2, U1>::new(&mut underlying_model);
 
     // don't update contributions that should be thresholded
     let mut x0 = Matrix2x1::new(-1.0, -1.0);

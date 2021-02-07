@@ -1,7 +1,8 @@
 extern crate nalgebra as na;
 
 use lair::{
-    BatchTrainer, Fxx, GradientTrainer, LayeredModel, LinearModel, Model, SGDTrainer, UpdateParams,
+    BatchTrainer, Fxx, GradientTrainer, LayeredModel, LinearModel, Model, Relu, SGDTrainer,
+    UpdateParams,
 };
 use log::debug;
 use na::{Matrix, Matrix1, Matrix2x1};
@@ -67,6 +68,7 @@ fn optimize_quadratic(params: &OptimizeParams) {
         Box::new(SGDTrainer::new(&learning_rate))
     };
     let mut m0 = LinearModel::<U2, U2>::new_random(&mut *train0);
+    let mut relu = Relu::<U2, U2>::new(&mut m0);
 
     let mut train1: Box<dyn GradientTrainer<U2, U1>> = if params.mini_batch > 0 {
         Box::new(BatchTrainer::<U2, U1>::new(
@@ -77,7 +79,7 @@ fn optimize_quadratic(params: &OptimizeParams) {
         Box::new(SGDTrainer::new(&learning_rate))
     };
     let mut m1 = LinearModel::<U2, U1>::new_random(&mut *train1);
-    let mut model = LayeredModel::<U2, U2, U1>::new(&mut m0, &mut m1);
+    let mut model = LayeredModel::<U2, U2, U1>::new(&mut relu, &mut m1);
 
     let mut i = 0;
     while i < params.max_iter {
@@ -123,7 +125,7 @@ fn optimize_quadratic(params: &OptimizeParams) {
 }
 
 //
-// Demonstration of network training to fit a quadratic.
+// Demonstration of network training to attempt to fit a quadratic.
 //
 fn main() {
     env_logger::init();

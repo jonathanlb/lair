@@ -9,6 +9,16 @@ pub struct Relu<'a, M: DimName, N: DimName> {
     model: &'a mut dyn Model<M, N>,
 }
 
+impl<'a, M, N> Relu<'a, M, N>
+where
+    M: DimName,
+    N: DimName,
+{
+    pub fn new(model: &'a mut dyn Model<M, N>) -> Self {
+        Relu { model: model }
+    }
+}
+
 impl<'a, M, N> Model<M, N> for Relu<'a, M, N>
 where
     M: DimName,
