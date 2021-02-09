@@ -145,6 +145,75 @@ where
         }
     }
 }
+
+pub struct MomentumTrainer<'a, M, N>
+where
+    M: DimName,
+    N: DimName,
+    DefaultAllocator: Allocator<Fxx, N, M> + Allocator<Fxx, N>,
+{
+    momentum: Fxx,
+    velocity: Option<(MatrixMN<Fxx, N, M>, VectorN<Fxx, N>)>,
+    gd: &'a mut dyn GradientTrainer<M, N>,
+}
+
+impl<'a, M, N> MomentumTrainer<'a, M, N>
+where
+    M: DimName,
+    N: DimName,
+    DefaultAllocator: Allocator<Fxx, N, M> + Allocator<Fxx, N>,
+{
+    pub fn new(momentum: Fxx, gd: &'a mut dyn GradientTrainer<M, N>) -> Self {
+        MomentumTrainer {
+            momentum: momentum,
+            velocity: None,
+            gd: gd,
+        }
+    }
+}
+
+///
+/// Apply gradient a mixture of the most recent and next gradient updates.
+/// Goodfellow, Bengio, Courville S8.3.2.
+///
+impl<'a, M, N> GradientTrainer<M, N> for MomentumTrainer<'a, M, N>
+where
+    M: DimName,
+    N: DimName,
+    DefaultAllocator: Allocator<Fxx, N, M> + Allocator<Fxx, N>,
+    Owned<Fxx, N>: Copy,
+    Owned<Fxx, N, M>: Copy,
+{
+    fn train(
+        &mut self,
+        weights: &MatrixMN<Fxx, N, M>,
+        bias: &VectorN<Fxx, N>,
+        gradient: &MatrixMN<Fxx, N, M>,
+        bias_gradient: &VectorN<Fxx, N>,
+    ) -> Option<(MatrixMN<Fxx, N, M>, VectorN<Fxx, N>)> {
+        match self.gd.train(weights, bias, gradient, bias_gradient) {
+            Some((w1, b1)) => {
+                match self.velocity {
+                    Some((vw, vb)) => {
+                        // gd trainer returns the updated value not the gradient
+                        let gw = weights - w1;
+                        let gb = bias - b1;
+                        let vw1 = self.momentum * vw - gw;
+                        let vb1 = self.momentum * vb - gb;
+                        self.velocity = Some((vw1, vb1));
+                        Some((weights + vw1, bias + vb1))
+                    }
+                    None => {
+                        self.velocity = Some((w1 - weights, b1 - bias));
+                        Some((w1, b1))
+                    }
+                }
+            }
+            None => None,
+        }
+    }
+}
+
 #[cfg(test)]
 #[path = "./trainer_test.rs"]
 mod trainer_test;
