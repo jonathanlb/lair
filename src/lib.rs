@@ -1,5 +1,9 @@
 #![crate_name = "lair"]
 
+mod img;
+pub use img::conv2d::Pooler2d;
+pub use img::conv2d::Conv2d;
+
 mod layered_model;
 pub use layered_model::LayeredModel;
 

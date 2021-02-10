@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 env_logger = "0.8.2"
+image = "0.23.13"
 log = "0.4.14"
 nalgebra = "0.23"
 rand = "0.6.5"
