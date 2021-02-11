@@ -1,6 +1,7 @@
 extern crate nalgebra as na;
 
 use na::{DimAdd, DimDiff, DimMul, DimName, DimProd, DimSub, DimSum};
+use na::constraint::{DimEq, ShapeConstraint};
 use na::{VectorN};
 use na::{U1};
 use na::allocator::Allocator;
@@ -32,11 +33,10 @@ pub struct Conv2d<'a, Pr, Pc, Pi, Po, Ir, Ic>
 where
     Pr: DimName + DimMul<Pc>,
     Pc: DimName,
-    Pi: DimName + DimMul<DimProd<Pr, Pc>>,
+    Pi: DimName + DimMul<DimProd<Pr, Pc>> + DimMul<DimProd<Ir, Ic>>,
     Po: DimName + DimMul<DimProd<DimSum<DimDiff<Ir, Pr>, U1>, DimSum<DimDiff<Ic, Pc>, U1>>>,
-    Ir: DimName + DimSub<Pr>,
+    Ir: DimName + DimSub<Pr> + DimMul<Ic>,
     Ic: DimName + DimSub<Pc>,
-    // Co: DimName + DimMul<DimProd<DimSum<DimDiff<Ir, Pr>, U1>, DimSum<DimDiff<Ic, Pc>, U1>>>,
     DimDiff<Ir, Pr>: DimAdd<U1>,
     DimDiff<Ic, Pc>: DimAdd<U1>,
     DimSum<DimDiff<Ir, Pr>, U1>: DimMul<DimSum<DimDiff<Ic, Pc>, U1>>,
@@ -51,11 +51,10 @@ impl <'a, Pr, Pc, Pi, Po, Ir, Ic> Conv2d<'a, Pr, Pc, Pi, Po, Ir, Ic>
 where
     Pr: DimName + DimMul<Pc>,
     Pc: DimName,
-    Pi: DimName + DimMul<DimProd<Pr, Pc>>,
+    Pi: DimName + DimMul<DimProd<Pr, Pc>> + DimMul<DimProd<Ir, Ic>>,
     Po: DimName + DimMul<DimProd<DimSum<DimDiff<Ir, Pr>, U1>, DimSum<DimDiff<Ic, Pc>, U1>>>,
-    Ir: DimName + DimSub<Pr>,
+    Ir: DimName + DimSub<Pr> + DimMul<Ic>,
     Ic: DimName + DimSub<Pc>,
-    // Co: DimName + DimMul<DimProd<DimSum<DimDiff<Ir, Pr>, U1>, DimSum<DimDiff<Ic, Pc>, U1>>>,
     DimDiff<Ir, Pr>: DimAdd<U1>,
     DimDiff<Ic, Pc>: DimAdd<U1>,
     DimSum<DimDiff<Ir, Pr>, U1>: DimMul<DimSum<DimDiff<Ic, Pc>, U1>>,
@@ -67,6 +66,58 @@ where
             },
             model: None,
         }
+    }
+}
+
+impl <'a, Pr, Pc, Pi, Po, Ir, Ic, M, N> Model<M, N> for Conv2d<'a, Pr, Pc, Pi, Po, Ir, Ic> 
+where
+    Pr: DimName + DimMul<Pc>,
+    Pc: DimName,
+    Pi: DimName + DimMul<DimProd<Pr, Pc>> + DimMul<DimProd<Ir, Ic>>,
+    Po: DimName + DimMul<DimProd<DimSum<DimDiff<Ir, Pr>, U1>, DimSum<DimDiff<Ic, Pc>, U1>>>,
+    Ir: DimName + DimSub<Pr> + DimMul<Ic>,
+    Ic: DimName + DimSub<Pc>,
+    M: DimName,
+    N: DimName,
+    ShapeConstraint: DimEq<M, DimProd<Pi, DimProd<Ir, Ic>>> +
+        DimEq<N, DimProd<DimSum<DimDiff<Ir, Pr>, U1>, DimSum<DimDiff<Ic, Pc>, U1>>>,
+    DimDiff<Ir, Pr>: DimAdd<U1>,
+    DimDiff<Ic, Pc>: DimAdd<U1>,
+    DimSum<DimDiff<Ir, Pr>, U1>: DimMul<DimSum<DimDiff<Ic, Pc>, U1>>,
+{
+    #[inline]
+    fn num_inputs(&self) -> usize {
+        M::dim()
+    }
+
+    #[inline]
+    fn num_outputs(&self) -> usize {
+        N::dim()
+    }
+
+    fn backpropagate(&mut self, x: &VectorN<Fxx, M>, de_dy: &VectorN<Fxx, N>) -> VectorN<Fxx, M> 
+    where
+        DefaultAllocator: Allocator<Fxx, N> + Allocator<Fxx, M>
+    {
+        // XXX todo
+        VectorN::<Fxx, M>::zeros()
+    }
+
+    fn predict(&self, x: &VectorN<Fxx, M>) -> VectorN<Fxx, N>
+    where
+        DefaultAllocator: Allocator<Fxx, M> + Allocator<Fxx, N>,
+    {
+        // XXX todo
+        VectorN::<Fxx, N>::zeros()
+    }
+
+    fn update(&mut self, x: &VectorN<Fxx, M>, y: &VectorN<Fxx, N>) -> VectorN<Fxx, M>
+    where
+        DefaultAllocator: Allocator<Fxx, M> + Allocator<Fxx, N>,
+    {
+        let yh = self.predict(x);
+        let err = yh - y;
+        self.backpropagate(x, &err)
     }
 }
 
