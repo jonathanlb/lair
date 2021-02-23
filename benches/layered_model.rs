@@ -3,7 +3,7 @@ use log::debug;
 
 extern crate nalgebra as na;
 
-use lair::{Fxx, LayeredModel, LinearModel, Model, UpdateParams};
+use lair::{Fxx, LayeredModel, LinearModel, Model, SGDTrainer, UpdateParams};
 
 use na::allocator::Allocator;
 use na::DefaultAllocator;
@@ -45,8 +45,10 @@ fn optimize_quadratic(learning_rate: &UpdateParams, tol: Fxx) {
         Matrix1::<Fxx>::new(0.5 * x[0] - 4.0 * x[1] - 6.0)
     }
 
-    let mut m0 = LinearModel::<U2, U2>::new_normal(&learning_rate, 10.0);
-    let mut m1 = LinearModel::<U2, U1>::new_normal(&learning_rate, 10.0);
+    let mut train0 = SGDTrainer::new(&learning_rate);
+    let mut m0 = LinearModel::<U2, U2>::new_normal(&mut train0, 10.0);
+    let mut train1 = SGDTrainer::new(&learning_rate);
+    let mut m1 = LinearModel::<U2, U1>::new_normal(&mut train1, 10.0);
     let mut model = LayeredModel::<U2, U2, U1>::new(&mut m0, &mut m1);
 
     let num_samples = 100;
@@ -87,7 +89,10 @@ fn optimize_quadratic(learning_rate: &UpdateParams, tol: Fxx) {
 // If step size is large we don't converge (diverge infact).
 fn optimize_quadratic_benchmark(c: &mut Criterion) {
     env_logger::init();
-    let learning_rate = UpdateParams { step_size: 1e-5 };
+    let learning_rate = UpdateParams {
+        l2_reg: 0.0,
+        step_size: 1e-5,
+    };
     let tol = 0.1;
 
     c.bench_function("optimize_quadratic", |b| {
