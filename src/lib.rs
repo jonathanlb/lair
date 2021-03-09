@@ -2,6 +2,9 @@
 
 mod img;
 pub use img::conv2d::Conv2d;
+pub use img::{
+    range_matrix, range_vector, read_luma, read_lumad, write_luma_matrix, write_luma_vector,
+};
 
 mod layered_model;
 pub use layered_model::LayeredModel;

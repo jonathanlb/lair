@@ -206,6 +206,10 @@ where
             Err(err)
         }
     }
+
+    pub fn get_ws(&self) -> &MatrixMN<Fxx, N, M> {
+        &self.ws
+    }
 }
 
 #[cfg(test)]

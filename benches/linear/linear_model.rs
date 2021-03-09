@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::Criterion;
 use rand::distributions::{Distribution, Normal};
 
 extern crate lair;
@@ -39,11 +39,8 @@ fn solve_simple_linear(sigma: f64) -> () {
 }
 
 // A wrapper for optimizing a 2-variable linear model through least squares.
-fn solve_simple_linear_benchmark(c: &mut Criterion) {
+pub fn solve_simple_linear_benchmark(c: &mut Criterion) {
     c.bench_function("solve_simple_linear", |b| {
         b.iter(|| solve_simple_linear(0.1))
     });
 }
-
-criterion_group!(benches, solve_simple_linear_benchmark);
-criterion_main!(benches);

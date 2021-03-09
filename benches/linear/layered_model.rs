@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::Criterion;
 use log::debug;
 
 extern crate nalgebra as na;
@@ -87,7 +87,7 @@ fn optimize_quadratic(learning_rate: &UpdateParams, tol: Fxx) {
 
 // XXX Example of need to improve numeric stability in training.
 // If step size is large we don't converge (diverge infact).
-fn optimize_quadratic_benchmark(c: &mut Criterion) {
+pub fn optimize_quadratic_benchmark(c: &mut Criterion) {
     env_logger::init();
     let learning_rate = UpdateParams {
         l2_reg: 0.0,
@@ -99,6 +99,3 @@ fn optimize_quadratic_benchmark(c: &mut Criterion) {
         b.iter(|| optimize_quadratic(&learning_rate, tol));
     });
 }
-
-criterion_group!(benches, optimize_quadratic_benchmark);
-criterion_main!(benches);

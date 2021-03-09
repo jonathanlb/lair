@@ -10,19 +10,18 @@ edition = "2018"
 env_logger = "0.8.2"
 image = "0.23.13"
 log = "0.4.14"
-nalgebra = "0.23"
+nalgebra = "0.24.1"
 rand = "0.6.5"
 structopt = "0.3.21"
+typenum = "1.12.0"
 
 [dev_dependencies]
 assert_approx_eq = "1.1"
-criterion = "0.3"
+cargo-criterion = "1.0.1"
+criterion = "0.3.4"
 ctor = "0.1.18"
 
 [[bench]]
-name = "layered_model"
+name = "bench_main"
 harness = false
-
-[[bench]]
-name = "linear_model"
-harness = false
+html_reports = []
