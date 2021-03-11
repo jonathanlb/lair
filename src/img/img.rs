@@ -5,30 +5,30 @@ use image::io::Reader;
 use image::{ImageBuffer, ImageError, Luma};
 
 use na::allocator::Allocator;
+use nalgebra::storage::{Storage, StorageMut};
 use na::DefaultAllocator;
 use na::{DMatrix, DimName, Matrix, MatrixMN, VectorN, U1};
 
 use std::convert::TryInto;
 use std::io::{BufRead, Seek};
-
 use log::debug;
 
 use crate::model::Fxx;
 
 const IMG_MAX: Fxx = 65535.0;
 
-pub fn overlay_matrix<M, N, M1, N1>(
-    mat: &MatrixMN<Fxx, M, N>,
+pub fn overlay_matrix<M, N, M1, N1, S, S1>(
+    mat: &Matrix<Fxx, M, N, S>,
     dest_row: usize,
     dest_col: usize,
-    dest: &mut MatrixMN<Fxx, M1, N1>) -> () 
+    dest: &mut Matrix<Fxx, M1, N1, S1>) -> () 
 where
     M: DimName,
     N: DimName,
     M1: DimName,
     N1: DimName,
-    DefaultAllocator: Allocator<Fxx, M, N>
-        + Allocator<Fxx, M1, N1>,
+    S: Storage<Fxx, M, N>,
+    S1: StorageMut<Fxx, M1, N1>,
 {
     debug_assert!(mat.nrows() + dest_row <= dest.nrows(), "row overflow {} + {} > {}", dest_row, mat.nrows(), dest.nrows());
     debug_assert!(mat.ncols() + dest_col <= dest.ncols(), "column overflow {} + {} > {}", dest_col, mat.ncols(), dest.ncols());
@@ -43,19 +43,19 @@ where
 }
 
 // nalgebra implements column-major matrices, we'll do the same.
-pub fn overlay_matrix_to_vector<M, N, P>(
-    mat: &MatrixMN<Fxx, M, N>,
+pub fn overlay_matrix_to_vector<M, N, P, S, S1>(
+    mat: &Matrix<Fxx, M, N, S>,
     dest_row: usize,
     dest_col: usize,
-    dest: &mut VectorN<Fxx, P>,
+    dest: &mut Matrix<Fxx, P, U1, S1>,
     nrows: usize,
     ncols: usize) -> ()
 where
     M: DimName,
     N: DimName,
     P: DimName,
-    DefaultAllocator: Allocator<Fxx, M, N>
-        + Allocator<Fxx, P>,
+    S: Storage<Fxx, M, N>,
+    S1: StorageMut<Fxx, P, U1>,
 {
     debug_assert!(nrows*ncols == dest.nrows(), "expected {}x{} elements, but received {} element vector", nrows, ncols, dest.nrows());
     debug_assert!(mat.nrows() + dest_row <= nrows, "row overflow {} + {} > {}", dest_row, mat.nrows(), nrows);
