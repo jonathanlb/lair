@@ -9,6 +9,8 @@ use na::U1;
 use na::{DimAdd, DimDiff, DimMul, DimName, DimProd, DimSub, DimSum};
 use std::marker::PhantomData;
 
+use log::debug;
+
 use crate::model::{Fxx, Model};
 
 ///
@@ -238,7 +240,7 @@ where
         DefaultAllocator: Allocator<Fxx, M> + Allocator<Fxx, N>,
     {
         let mut y = VectorN::<Fxx, N>::zeros();
-        println!(
+        debug!(
             "M={}, N={}, Pr={}, Pc={}, Pi={}, Po={}, Ir={}, Ic={}",
             M::dim(),
             N::dim(),

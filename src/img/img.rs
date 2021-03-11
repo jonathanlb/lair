@@ -6,14 +6,69 @@ use image::{ImageBuffer, ImageError, Luma};
 
 use na::allocator::Allocator;
 use na::DefaultAllocator;
-use na::{DMatrix, DimName, MatrixMN, VectorN, U1};
+use na::{DMatrix, DimName, Matrix, MatrixMN, VectorN, U1};
 
 use std::convert::TryInto;
 use std::io::{BufRead, Seek};
 
+use log::debug;
+
 use crate::model::Fxx;
 
 const IMG_MAX: Fxx = 65535.0;
+
+pub fn overlay_matrix<M, N, M1, N1>(
+    mat: &MatrixMN<Fxx, M, N>,
+    dest_row: usize,
+    dest_col: usize,
+    dest: &mut MatrixMN<Fxx, M1, N1>) -> () 
+where
+    M: DimName,
+    N: DimName,
+    M1: DimName,
+    N1: DimName,
+    DefaultAllocator: Allocator<Fxx, M, N>
+        + Allocator<Fxx, M1, N1>,
+{
+    debug_assert!(mat.nrows() + dest_row <= dest.nrows(), "row overflow {} + {} > {}", dest_row, mat.nrows(), dest.nrows());
+    debug_assert!(mat.ncols() + dest_col <= dest.ncols(), "column overflow {} + {} > {}", dest_col, mat.ncols(), dest.ncols());
+
+    for col in 0..mat.ncols() {
+        let col_off = col + dest_col;
+        for row in 0..mat.nrows() {
+            let row_off = row + dest_row;
+            dest[(row_off, col_off)] = mat[(row, col)];
+        }
+    }
+}
+
+// nalgebra implements column-major matrices, we'll do the same.
+pub fn overlay_matrix_to_vector<M, N, P>(
+    mat: &MatrixMN<Fxx, M, N>,
+    dest_row: usize,
+    dest_col: usize,
+    dest: &mut VectorN<Fxx, P>,
+    nrows: usize,
+    ncols: usize) -> ()
+where
+    M: DimName,
+    N: DimName,
+    P: DimName,
+    DefaultAllocator: Allocator<Fxx, M, N>
+        + Allocator<Fxx, P>,
+{
+    debug_assert!(nrows*ncols == dest.nrows(), "expected {}x{} elements, but received {} element vector", nrows, ncols, dest.nrows());
+    debug_assert!(mat.nrows() + dest_row <= nrows, "row overflow {} + {} > {}", dest_row, mat.nrows(), nrows);
+    debug_assert!(mat.ncols() + dest_col <= ncols, "column overflow {} + {} > {}", dest_col, mat.ncols(), ncols);
+
+    for col in 0..mat.ncols() {
+        let col_off = (col + dest_col) * nrows;
+        for row in 0..mat.nrows() {
+            let row_off = row + dest_row;
+            dest[row_off + col_off] = mat[(row, col)];
+        }
+    }
+}
 
 ///
 /// Scale the values of the input to span the visual range.
@@ -68,6 +123,7 @@ where
             FilterType::Nearest,
         )
         .to_luma16();
+    debug!("copying {:?} image to {}x{} matrix", scaled.dimensions(), R::dim(), C::dim());
     Ok(MatrixMN::<Fxx, R, C>::from_fn(|r, c| {
         let p = *scaled.get_pixel(c as u32, r as u32);
         p[0] as Fxx

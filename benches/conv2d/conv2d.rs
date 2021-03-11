@@ -1,6 +1,8 @@
 use criterion::Criterion;
 use rand::distributions::{Distribution, Normal, Uniform};
 
+use log::debug;
+
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -8,15 +10,28 @@ use std::path::{Path, PathBuf};
 extern crate lair;
 extern crate nalgebra as na;
 
-use lair::{
+use lair::img::{
     range_matrix, range_vector, read_luma, read_lumad, write_luma_matrix, write_luma_vector,
 };
 use lair::{Conv2d, Fxx, LayeredModel, LinearModel, Logit, Model, Relu, SGDTrainer, UpdateParams};
+
 use na::allocator::Allocator;
 use na::storage::Owned;
 use na::{DefaultAllocator, VectorN};
 use na::{DimDiff, DimName, DimProd, DimSum, U1, U32, U4};
 use typenum::{U300, U400};
+
+use std::sync::Once;
+
+static INIT: Once = Once::new();
+
+/// Setup function that is only run once, even if called multiple times.
+/// https://stackoverflow.com/questions/30177845/how-to-initialize-the-logger-for-integration-tests
+fn setup() {
+    INIT.call_once(|| {
+        env_logger::init();
+    });
+}
 
 struct TrainParams<'a> {
     num_targets: (f64, f64), // mean, stdev
@@ -50,11 +65,17 @@ const LEARNING_PARAMS: UpdateParams = UpdateParams {
 fn choose_img(dir: &Path) -> io::Result<PathBuf> {
     fn is_img<'r>(entry: &'r Result<fs::DirEntry, io::Error>) -> bool {
         match entry {
-            Ok(f) => f.path().ends_with(".png"),
+            Ok(f) => {
+                match f.path().extension() {
+                    Some(ext) => ext == "png",
+                    None => false,
+                }
+            },
             _ => false,
         }
     }
 
+    debug!("choosing image from {}", dir.to_string_lossy());
     if !dir.is_dir() {
         Err(io::Error::new(
             io::ErrorKind::InvalidInput,
@@ -62,6 +83,7 @@ fn choose_img(dir: &Path) -> io::Result<PathBuf> {
         ))
     } else {
         let count = dir.read_dir()?.filter(is_img).count();
+        debug!("found {} images in {:#?}", count, dir);
         if count <= 0 {
             Err(io::Error::new(
                 io::ErrorKind::NotFound,
@@ -95,6 +117,7 @@ where
     Owned<Fxx, M>: Copy,
     Owned<Fxx, N>: Copy,
 {
+    debug!("reading background: {}", back_img.0.to_string_lossy());
     let mut back_mat = read_luma::<_, Height, Width>(&mut io::BufReader::new(
         fs::File::open(back_img.0.as_os_str()).unwrap(),
     ))
@@ -102,40 +125,39 @@ where
     let mut positions = VectorN::<Fxx, N>::zeros();
 
     for i in target_img {
-        let x_dist = Uniform::from(0..Width::dim() - i.1 .1);
+        let file_path = &i.0;
+        let target_dim = i.1;
+        let x_dist = Uniform::from(0..Width::dim() - target_dim.1);
         let x = x_dist.sample(&mut rand::thread_rng());
-        let y_dist = Uniform::from(0..Width::dim() - i.1 .0);
+        let y_dist = Uniform::from(0..Width::dim() - target_dim.0);
         let y = y_dist.sample(&mut rand::thread_rng());
+        debug!("reading target: {}", file_path.to_string_lossy());
         let target_mat = read_lumad(
-            &mut io::BufReader::new(fs::File::open(i.0.as_os_str()).unwrap()),
-            i.1,
+            &mut io::BufReader::new(fs::File::open(file_path.as_os_str()).unwrap()),
+            target_dim,
         )
         .unwrap();
         // Copy the target into the background
-        for row in 0..y {
-            let row_off = row + i.1 .0;
-            for col in 0..x {
-                let col_off = col + i.1 .1;
-                back_mat[(row_off, col_off)] = target_mat[(row, col)];
+        lair::img::overlay_matrix(&target_mat, y, x, &back_mat);
+
+        // calculate ouput positions by interpolation.
+        let y0 = (Output1Rows::dim() as Fxx * y as Fxx / Height::dim() as Fxx).floor() as usize;
+        let y1 = (Output1Rows::dim() as Fxx * (y + target_dim.0) as Fxx / Height::dim() as Fxx).floor() as usize;
+        let x0 = (Output1Cols::dim() as Fxx * x as Fxx / Width::dim() as Fxx).floor() as usize;
+        let x1 = (Output1Cols::dim() as Fxx * (x + target_dim.1) as Fxx / Width::dim() as Fxx).floor() as usize;
+        debug!("({},{}) ({},{}) -> ({},{}) ({},{})", x, y, x+target_dim.1, y+target_dim.0, x0, y0, x1, y1);
+        debug!("{}x{} -> {}", Output1Rows::dim(), Output1Cols::dim(), positions.nrows());
+        for col in x0..x1 {
+            let col_off = col * Output1Rows::dim();
+            for row in y0..y1 {
+                let flat = col_off + row;
+                positions[flat] = 1.0;
             }
         }
-
-        // calculate ouput positions.
-        let y_off = (y as f64
-            + 0.5 * (i.1 .0 as f64) * (Output1Rows::dim() as f64) / (Height::dim() as f64))
-            .round()
-            .max(Output1Rows::dim() as f64 - 1.0)
-            .min(0.0) as usize;
-        let x_off = (x as f64
-            + 0.5 * (i.1 .1 as f64) * (Output1Cols::dim() as f64) / (Width::dim() as f64))
-            .round()
-            .max(Output1Cols::dim() as f64 - 1.0)
-            .min(0.0) as usize;
-        positions[(y as usize + y_off) * Output1Cols::dim() + (x as usize + x_off)] = 1.0;
     }
 
-    let back_rows =
-        VectorN::<Fxx, M>::from_fn(|i, _| back_mat[(i / Width::dim(), i % Width::dim())]);
+    // flatten the matrix
+    let back_rows = VectorN::<Fxx, M>::from_row_slice(back_mat.as_slice());
     (back_rows, positions)
 }
 
@@ -163,6 +185,7 @@ where
 }
 
 fn find_target(params: &TrainParams) {
+    debug!("find_target");
     let mut train0 = SGDTrainer::new(&LEARNING_PARAMS);
     let mut pooler0 = LinearModel::<DimProd<PoolS, PoolS>, Pool0>::new_random(&mut train0);
     let mut cnn0 =
@@ -205,6 +228,7 @@ fn find_target(params: &TrainParams) {
 }
 
 pub fn find_targets(c: &mut Criterion) {
+    setup();
     let params = TrainParams {
         num_targets: (1.0, 1.0),
         sz_targets: (32.0, 5.0),
