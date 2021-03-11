@@ -7,7 +7,7 @@ use image::{ImageBuffer, ImageError, Luma};
 use na::allocator::Allocator;
 use nalgebra::storage::{Storage, StorageMut};
 use na::DefaultAllocator;
-use na::{DMatrix, DimName, Matrix, MatrixMN, VectorN, U1};
+use na::{DMatrix, DimName, Matrix, MatrixMN, Vector, VectorN, U1};
 
 use std::convert::TryInto;
 use std::io::{BufRead, Seek};
@@ -47,7 +47,7 @@ pub fn overlay_matrix_to_vector<M, N, P, S, S1>(
     mat: &Matrix<Fxx, M, N, S>,
     dest_row: usize,
     dest_col: usize,
-    dest: &mut Matrix<Fxx, P, U1, S1>,
+    dest: &mut Vector<Fxx, P, S1>,
     nrows: usize,
     ncols: usize) -> ()
 where
@@ -55,7 +55,7 @@ where
     N: DimName,
     P: DimName,
     S: Storage<Fxx, M, N>,
-    S1: StorageMut<Fxx, P, U1>,
+    S1: StorageMut<Fxx, P>,
 {
     debug_assert!(nrows*ncols == dest.nrows(), "expected {}x{} elements, but received {} element vector", nrows, ncols, dest.nrows());
     debug_assert!(mat.nrows() + dest_row <= nrows, "row overflow {} + {} > {}", dest_row, mat.nrows(), nrows);
@@ -94,9 +94,10 @@ where
 ///
 /// Scale the values of the input to span the visual range.
 ///
-pub fn range_vector<M>(v: &VectorN<Fxx, M>) -> VectorN<Fxx, M>
+pub fn range_vector<M, S>(v: &Vector<Fxx, M, S>) -> VectorN<Fxx, M>
 where
     M: DimName,
+    S: Storage<Fxx, M>,
     DefaultAllocator: Allocator<Fxx, M>,
 {
     range_matrix::<M, U1, _>(v)
@@ -168,14 +169,14 @@ where
 }
 
 pub fn write_luma_vector<M, S>(
-    data: &Matrix<Fxx, M, U1, S>,
+    data: &Vector<Fxx, M, S>,
     height: usize,
     width: usize,
     path: &str,
 ) -> Result<(), ImageError>
 where
     M: DimName,
-    S: Storage<Fxx, M, U1>,
+    S: Storage<Fxx, M>,
 {
     debug_assert!(M::dim() == height * width);
     ImageBuffer::from_fn(width as u32, height as u32, |x, y| {
