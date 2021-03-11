@@ -2,9 +2,9 @@ extern crate nalgebra as na;
 
 use na::allocator::Allocator;
 use na::constraint::{DimEq, ShapeConstraint};
-use na::storage::Owned;
+use na::storage::{Owned, Storage, StorageMut};
 use na::DefaultAllocator;
-use na::VectorN;
+use na::{Matrix, VectorN};
 use na::U1;
 use na::{DimAdd, DimDiff, DimMul, DimName, DimProd, DimSub, DimSum};
 use std::marker::PhantomData;
@@ -89,12 +89,14 @@ where
     ///
     /// Extract/transform the input into the patch used by the pooler at rxc.
     ///
-    fn get_input_patch(
+    fn get_input_patch<S>(
         &self,
-        input: &VectorN<Fxx, M>,
+        input: &Matrix<Fxx, M, U1, S>,
         r: usize,
         c: usize,
-    ) -> VectorN<Fxx, DimProd<Pi, DimProd<Pr, Pc>>> {
+    ) -> VectorN<Fxx, DimProd<Pi, DimProd<Pr, Pc>>>
+    where S: Storage<Fxx, M, U1>
+    {
         let pc = Pc::dim();
         let pr = Pr::dim();
         let pi = Pi::dim();
@@ -117,12 +119,14 @@ where
     ///
     /// Get the portion of the output contributed to by the pooler at input rxc.
     ///
-    fn get_output_error_patch(
+    fn get_output_error_patch<S>(
         &self,
-        err: &VectorN<Fxx, N>,
+        err: &Matrix<Fxx, N, U1, S>,
         r: usize,
         c: usize,
-    ) -> VectorN<Fxx, Po> {
+    ) -> VectorN<Fxx, Po> 
+    where S: Storage<Fxx, N, U1>
+    {
         let oc = Ic::dim() - Pc::dim() + 1;
         let po = Po::dim();
         let offset = po * (r * oc + c);
@@ -132,13 +136,17 @@ where
     ///
     /// Copy the output from the rxc pool into the destination.
     ///
-    fn patch_output(
+    fn patch_output<S0, S1>(
         &self,
-        pooled: &VectorN<Fxx, Po>,
-        dest: &mut VectorN<Fxx, N>,
+        pooled: &Matrix<Fxx, Po, U1, S0>,
+        dest: &mut Matrix<Fxx, N, U1, S1>,
         r: usize,
         c: usize,
-    ) -> () {
+    ) -> () 
+    where
+        S0: Storage<Fxx, Po, U1>,
+        S1: StorageMut<Fxx, N, U1>,
+    {
         let po = Po::dim();
         let oc = Ic::dim() - Pc::dim() + 1;
         let offset = po * (r * oc + c);
