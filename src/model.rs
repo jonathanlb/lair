@@ -3,9 +3,10 @@ extern crate nalgebra as na;
 pub type Fxx = f32;
 
 use na::allocator::Allocator;
+use nalgebra::storage::Storage;
 use na::DefaultAllocator;
 use na::DimName;
-use na::{MatrixMN, VectorN};
+use na::{Matrix, VectorN};
 
 pub trait Model<M: DimName, N: DimName> {
     /// Apply backpropagation to this layer/module of a neural network,
@@ -44,9 +45,11 @@ pub trait Model<M: DimName, N: DimName> {
         DefaultAllocator: Allocator<Fxx, M> + Allocator<Fxx, N>;
 }
 
-pub fn has_nan<M: DimName, N: DimName>(x: &MatrixMN<Fxx, M, N>) -> bool
+pub fn has_nan<M, N, S>(x: &Matrix<Fxx, M, N, S>) -> bool
 where
-    DefaultAllocator: Allocator<Fxx, M, N>,
+    M: DimName,
+    N: DimName,
+    S: Storage<Fxx, M, N>,
 {
     for i in 0..x.len() {
         let xi = x[i];
