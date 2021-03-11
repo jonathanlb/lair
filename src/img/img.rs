@@ -73,10 +73,11 @@ where
 ///
 /// Scale the values of the input to span the visual range.
 ///
-pub fn range_matrix<M, N>(mat: &MatrixMN<Fxx, M, N>) -> MatrixMN<Fxx, M, N>
+pub fn range_matrix<M, N, S>(mat: &Matrix<Fxx, M, N, S>) -> MatrixMN<Fxx, M, N>
 where
     M: DimName,
     N: DimName,
+    S: Storage<Fxx, M, N>,
     DefaultAllocator: Allocator<Fxx, M, N>,
 {
     let max = mat.max();
@@ -98,7 +99,7 @@ where
     M: DimName,
     DefaultAllocator: Allocator<Fxx, M>,
 {
-    range_matrix::<M, U1>(v)
+    range_matrix::<M, U1, _>(v)
 }
 
 ///
@@ -154,11 +155,11 @@ where
     }))
 }
 
-pub fn write_luma_matrix<M, N>(data: &MatrixMN<Fxx, M, N>, path: &str) -> Result<(), ImageError>
+pub fn write_luma_matrix<M, N, S>(data: &Matrix<Fxx, M, N, S>, path: &str) -> Result<(), ImageError>
 where
     M: DimName,
     N: DimName,
-    DefaultAllocator: Allocator<Fxx, M, N>,
+    S: Storage<Fxx, M, N>,
 {
     ImageBuffer::from_fn(N::dim() as u32, M::dim() as u32, |x, y| {
         Luma([data[(y as usize, x as usize)] as u16]) // XXX u16
@@ -166,15 +167,15 @@ where
     .save(path)
 }
 
-pub fn write_luma_vector<M>(
-    data: &VectorN<Fxx, M>,
+pub fn write_luma_vector<M, S>(
+    data: &Matrix<Fxx, M, U1, S>,
     height: usize,
     width: usize,
     path: &str,
 ) -> Result<(), ImageError>
 where
     M: DimName,
-    DefaultAllocator: Allocator<Fxx, M>,
+    S: Storage<Fxx, M, U1>,
 {
     debug_assert!(M::dim() == height * width);
     ImageBuffer::from_fn(width as u32, height as u32, |x, y| {
