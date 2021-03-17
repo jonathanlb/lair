@@ -55,3 +55,27 @@ fn logit_updates() {
         y1[0]
     );
 }
+
+#[test]
+fn logit_is_stable_with_large_values() {
+    let x = logit(15466372000.0);
+    assert_approx_eq!(x, 1.0);
+}
+
+#[test]
+fn logit_is_stable_with_negative_large_values() {
+    let x = logit(-15466372000.0);
+    assert_approx_eq!(x, 0.0);
+}
+
+#[test]
+fn derivative_is_stable_with_large_values() {
+    let dl = dlogit(15466372000.0);
+    assert_approx_eq!(dl, 0.0);
+}
+
+#[test]
+fn derivative_is_stable_with_negative_large_values() {
+    let dl = dlogit(-15466372000.0);
+    assert_approx_eq!(dl, 0.0);
+}

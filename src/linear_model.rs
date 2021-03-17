@@ -1,5 +1,7 @@
 extern crate nalgebra as na;
 
+use log::debug;
+
 use na::allocator::{Allocator, Reallocator};
 use na::storage::Owned;
 use na::DefaultAllocator;
@@ -64,6 +66,7 @@ where
     // implementing Mul for Copy trait
     //
     fn backpropagate(&mut self, x: &VectorN<Fxx, M>, de_dy: &VectorN<Fxx, N>) -> VectorN<Fxx, M> {
+        debug!("linear backprop {}->{}", M::dim(), N::dim());
         debug_assert!(
             !has_nan(&x) && !has_nan(&de_dy),
             "backpropagate input error x={} de_dy={}",

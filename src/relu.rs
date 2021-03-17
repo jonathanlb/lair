@@ -1,5 +1,7 @@
 extern crate nalgebra as na;
 
+use log::debug;
+
 use na::allocator::Allocator;
 use na::{DefaultAllocator, DimName, VectorN};
 
@@ -28,6 +30,7 @@ where
     where
         DefaultAllocator: Allocator<Fxx, M> + Allocator<Fxx, N>,
     {
+        debug!("relu backprop {}->{}", M::dim(), N::dim());
         let p = self.model.predict(x);
         let mut de_dp = VectorN::<Fxx, N>::zeros();
         for i in 0..self.num_outputs() {

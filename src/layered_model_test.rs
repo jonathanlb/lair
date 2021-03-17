@@ -5,7 +5,7 @@ use na::{U1, U2, U3};
 
 use rand::distributions::{Distribution, Normal};
 
-use crate::{LinearModel, Model, SGDTrainer, UpdateParams};
+use crate::{LinearModel, Model, SGDTrainer, setup_logging, UpdateParams};
 
 const LEARNING_PARAMS: UpdateParams = UpdateParams {
     step_size: 1e-6,
@@ -16,7 +16,7 @@ const LEARNING_PARAMS: UpdateParams = UpdateParams {
 #[cfg(test)]
 #[ctor::ctor]
 fn init() {
-    env_logger::init();
+    setup_logging();
 }
 
 #[test]

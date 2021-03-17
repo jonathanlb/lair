@@ -69,6 +69,7 @@ where
             de_dp
         );
         debug!("|de_dp|={}", Matrix::norm(&de_dp));
+        debug!("|x|={}", Matrix::norm(x));
 
         let de_dx = self.model0.backpropagate(x, &de_dp);
         debug!("|de_dx|={}", Matrix::norm(&de_dx));

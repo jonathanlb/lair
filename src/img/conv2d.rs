@@ -231,6 +231,7 @@ where
     where
         DefaultAllocator: Allocator<Fxx, N> + Allocator<Fxx, M>,
     {
+        debug!("conv2d backprop {} -> {}", de_dy.nrows(), x.nrows());
         let mut de_dx = VectorN::<Fxx, M>::zeros();
         for r in 0..1 {
             for c in 0..1 {
@@ -249,7 +250,7 @@ where
     {
         let mut y = VectorN::<Fxx, N>::zeros();
         debug!(
-            "M={}, N={}, Pr={}, Pc={}, Pi={}, Po={}, Ir={}, Ic={}",
+            "predict M={}, N={}, Pr={}, Pc={}, Pi={}, Po={}, Ir={}, Ic={}",
             M::dim(),
             N::dim(),
             Pr::dim(),

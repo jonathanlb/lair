@@ -2,11 +2,6 @@
 
 pub mod img;
 pub use img::conv2d::Conv2d;
-/* 
-pub use img::{
-    range_matrix, range_vector, read_luma, read_lumad, write_luma_matrix, write_luma_vector,
-};
-*/
 
 mod layered_model;
 pub use layered_model::LayeredModel;
@@ -30,3 +25,15 @@ pub use trainer::GradientTrainer;
 pub use trainer::MomentumTrainer;
 pub use trainer::SGDTrainer;
 pub use trainer::UpdateParams;
+
+use std::sync::Once;
+
+static INIT: Once = Once::new();
+
+/// Setup function that is only run once, even if called multiple times.
+/// https://stackoverflow.com/questions/30177845/how-to-initialize-the-logger-for-integration-tests
+pub fn setup_logging() {
+    INIT.call_once(|| {
+        env_logger::init();
+    });
+}

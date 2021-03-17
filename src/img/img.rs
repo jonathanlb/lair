@@ -7,7 +7,7 @@ use image::{ImageBuffer, ImageError, Luma};
 use na::allocator::Allocator;
 use nalgebra::storage::{Storage, StorageMut};
 use na::DefaultAllocator;
-use na::{DMatrix, DimName, Matrix, MatrixMN, Vector, VectorN, U1};
+use na::{DMatrix, Dim, DimName, Matrix, MatrixMN, Vector, VectorN, U1};
 
 use std::convert::TryInto;
 use std::io::{BufRead, Seek};
@@ -23,10 +23,10 @@ pub fn overlay_matrix<M, N, M1, N1, S, S1>(
     dest_col: usize,
     dest: &mut Matrix<Fxx, M1, N1, S1>) -> () 
 where
-    M: DimName,
-    N: DimName,
-    M1: DimName,
-    N1: DimName,
+    M: Dim,
+    N: Dim,
+    M1: Dim,
+    N1: Dim,
     S: Storage<Fxx, M, N>,
     S1: StorageMut<Fxx, M1, N1>,
 {
@@ -51,9 +51,9 @@ pub fn overlay_matrix_to_vector<M, N, P, S, S1>(
     nrows: usize,
     ncols: usize) -> ()
 where
-    M: DimName,
-    N: DimName,
-    P: DimName,
+    M: Dim,
+    N: Dim,
+    P: Dim,
     S: Storage<Fxx, M, N>,
     S1: StorageMut<Fxx, P>,
 {
@@ -119,7 +119,7 @@ where
     let image = ir.decode()?;
     let scaled = image
         .grayscale()
-        .resize(
+        .resize_exact( // exact to change aspect ratio as necessary
             C::dim().try_into().unwrap(),
             R::dim().try_into().unwrap(),
             FilterType::Nearest,
@@ -154,6 +154,20 @@ where
         let p = *scaled.get_pixel(c as u32, r as u32);
         p[0] as Fxx
     }))
+}
+
+///
+/// Scale the image values of the input to span [0..1].
+///
+pub fn unit_range_from_img<M, N, S>(mat: &Matrix<Fxx, M, N, S>) -> MatrixMN<Fxx, M, N>
+where
+    M: DimName,
+    N: DimName,
+    S: Storage<Fxx, M, N>,
+    DefaultAllocator: Allocator<Fxx, M, N>,
+{
+    let m = 1.0 / IMG_MAX;
+    m * mat
 }
 
 pub fn write_luma_matrix<M, N, S>(data: &Matrix<Fxx, M, N, S>, path: &str) -> Result<(), ImageError>

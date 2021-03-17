@@ -11,27 +11,15 @@ extern crate lair;
 extern crate nalgebra as na;
 
 use lair::img::{
-    range_matrix, range_vector, read_luma, read_lumad, write_luma_matrix, write_luma_vector,
+    range_matrix, range_vector, read_luma, read_lumad, unit_range_from_img, write_luma_matrix, write_luma_vector,
 };
-use lair::{Conv2d, Fxx, LayeredModel, LinearModel, Logit, Model, Relu, SGDTrainer, UpdateParams};
+use lair::{Conv2d, Fxx, LayeredModel, LinearModel, Logit, Model, Relu, SGDTrainer, setup_logging, UpdateParams};
 
 use na::allocator::Allocator;
 use na::storage::Owned;
 use na::{DefaultAllocator, VectorN};
 use na::{DimDiff, DimName, DimProd, DimSum, U1, U32, U4};
 use typenum::{U300, U400};
-
-use std::sync::Once;
-
-static INIT: Once = Once::new();
-
-/// Setup function that is only run once, even if called multiple times.
-/// https://stackoverflow.com/questions/30177845/how-to-initialize-the-logger-for-integration-tests
-fn setup() {
-    INIT.call_once(|| {
-        env_logger::init();
-    });
-}
 
 struct TrainParams<'a> {
     num_targets: (f64, f64), // mean, stdev
@@ -59,7 +47,7 @@ type OutputD1 = DimProd<Output1Rows, Output1Cols>;
 
 const LEARNING_PARAMS: UpdateParams = UpdateParams {
     step_size: 1e-4,
-    l2_reg: 0.0,
+    l2_reg: 0.01,
 };
 
 fn choose_img(dir: &Path) -> io::Result<PathBuf> {
@@ -129,7 +117,7 @@ where
         let target_dim = i.1;
         let x_dist = Uniform::from(0..Width::dim() - target_dim.1);
         let x = x_dist.sample(&mut rand::thread_rng());
-        let y_dist = Uniform::from(0..Width::dim() - target_dim.0);
+        let y_dist = Uniform::from(0..Height::dim() - target_dim.0);
         let y = y_dist.sample(&mut rand::thread_rng());
         debug!("reading target: {}", file_path.to_string_lossy());
         let target_mat = read_lumad(
@@ -138,7 +126,7 @@ where
         )
         .unwrap();
         // Copy the target into the background
-        lair::img::overlay_matrix(&target_mat, y, x, &back_mat);
+        lair::img::overlay_matrix(&target_mat, y, x, &mut back_mat);
 
         // calculate ouput positions by interpolation.
         let y0 = (Output1Rows::dim() as Fxx * y as Fxx / Height::dim() as Fxx).floor() as usize;
@@ -157,6 +145,7 @@ where
     }
 
     // flatten the matrix
+    back_mat = unit_range_from_img(&back_mat);
     let back_rows = VectorN::<Fxx, M>::from_row_slice(back_mat.as_slice());
     (back_rows, positions)
 }
@@ -216,7 +205,7 @@ fn find_target(params: &TrainParams) {
     for i in 0..Pool0::dim() {
         let path = format!("ws0{}.png", i);
         let slice = pooler0.get_ws().row(i).transpose();
-        write_luma_vector::<DimProd<PoolS, PoolS>>(
+        write_luma_vector(
             &range_vector(&slice),
             PoolS::dim(),
             PoolS::dim(),
@@ -228,7 +217,7 @@ fn find_target(params: &TrainParams) {
 }
 
 pub fn find_targets(c: &mut Criterion) {
-    setup();
+    setup_logging();
     let params = TrainParams {
         num_targets: (1.0, 1.0),
         sz_targets: (32.0, 5.0),

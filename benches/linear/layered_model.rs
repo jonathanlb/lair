@@ -3,7 +3,7 @@ use log::debug;
 
 extern crate nalgebra as na;
 
-use lair::{Fxx, LayeredModel, LinearModel, Model, SGDTrainer, UpdateParams};
+use lair::{Fxx, LayeredModel, LinearModel, Model, SGDTrainer, setup_logging, UpdateParams};
 
 use na::allocator::Allocator;
 use na::DefaultAllocator;
@@ -88,7 +88,7 @@ fn optimize_quadratic(learning_rate: &UpdateParams, tol: Fxx) {
 // XXX Example of need to improve numeric stability in training.
 // If step size is large we don't converge (diverge infact).
 pub fn optimize_quadratic_benchmark(c: &mut Criterion) {
-    env_logger::init();
+    setup_logging();
     let learning_rate = UpdateParams {
         l2_reg: 0.0,
         step_size: 1e-5,
